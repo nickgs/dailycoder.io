@@ -22,6 +22,76 @@
  */
 window.CHALLENGES = [
   {
+    id: "three-step-spin",
+    date: "2026-08-12",
+    title: "The Three-Step Spin",
+    blurb: "Rotate an array right by k — in place, O(1) space — using three reversals.",
+    difficulty: "Easy",
+    minutes: 10,
+    tags: ["arrays", "two-pointers"],
+    prompt:
+      "Given an array of n elements and a non-negative integer k, rotate the " +
+      "array to the right by k positions — in place, using only O(1) extra space.\n\n" +
+      "The brute-force approach of shifting one element at a time costs O(n·k). " +
+      "You can do it in O(n) with a trick that feels like magic the first time " +
+      "you see it: three reversals.\n\n" +
+      "Trace it on paper before you write code. The whole charm is in watching " +
+      "the array fall into place.",
+    examples: [
+      { in: "[1,2,3,4,5,6,7], k=3", out: "[5,6,7,1,2,3,4]" },
+      { in: "[1,2,3], k=4", out: "[3,1,2]" },
+      { in: "[-1,-100,3,99], k=2", out: "[3,99,-1,-100]" }
+    ],
+    constraints: [
+      "k can be larger than n — wrap with k mod n.",
+      "In place means O(1) extra space; no allocating a second array.",
+      "Elements may be any comparable type, including negatives."
+    ],
+    whyItMatters:
+      "The three-reversal trick is a lesson in reframing. \"Move each element " +
+      "to its new home\" is the obvious approach and it's painful. \"Tear the " +
+      "structure down, then rebuild it in two pieces\" sounds reckless but is " +
+      "clean and fast. That instinct — decomposing a shuffle into structural " +
+      "transformations — shows up in string rotation, buffer swaps, and anywhere " +
+      "you need to rearrange without scratch space.",
+    hint:
+      "Try [1,2,3,4,5,6,7] with k=3. First reverse the WHOLE array. Now the " +
+      "elements that belong at the front are sitting in a block on the left — " +
+      "just backwards. Reverse that block, then reverse what's left.",
+    solution: {
+      lang: "javascript",
+      code:
+        "function rotate(nums, k) {\n" +
+        "  const n = nums.length;\n" +
+        "  k = k % n;\n" +
+        "  if (k === 0) return nums;\n" +
+        "\n" +
+        "  function reverse(arr, lo, hi) {\n" +
+        "    while (lo < hi) {\n" +
+        "      const tmp = arr[lo];\n" +
+        "      arr[lo] = arr[hi];\n" +
+        "      arr[hi] = tmp;\n" +
+        "      lo++;\n" +
+        "      hi--;\n" +
+        "    }\n" +
+        "  }\n" +
+        "\n" +
+        "  reverse(nums, 0, n - 1);\n" +
+        "  reverse(nums, 0, k - 1);\n" +
+        "  reverse(nums, k, n - 1);\n" +
+        "  return nums;\n" +
+        "}",
+      notes:
+        "Rotating right by k means the last k elements come to the front. " +
+        "Reversing the whole array puts those last-k elements at the front " +
+        "(backwards) and the first n-k at the back (also backwards). Two more " +
+        "reversals fix each half. Every element is touched twice — once in the " +
+        "full reversal, once in a partial — so it's O(n) time and O(1) space. " +
+        "The k mod n handles the wrap: without it, k=4 on a 3-element array " +
+        "walks right off the end."
+    }
+  },
+  {
     id: "the-drifting-hour-hand",
     date: "2026-08-10",
     title: "The Drifting Hour Hand",
