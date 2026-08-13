@@ -1,0 +1,39 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dailycoder-api",
+  "main": "src/index.js",
+  "compatibility_date": "2026-06-01",
+  "observability": { "enabled": true },
+
+  // Two triggers, because 7am America/New_York is 11:00 UTC in EDT and 12:00
+  // UTC in EST. The Worker checks the actual ET hour and the "already sent
+  // today" key, so exactly one of these two ever does the send.
+  "triggers": {
+    "crons": ["0 11 * * *", "0 12 * * *"]
+  },
+
+  // Non-secret config. Secrets (NOTION_TOKEN, RESEND_API_KEY, SIGNING_SECRET,
+  // RESEND_WEBHOOK_SECRET, ADMIN_SECRET) go in via `wrangler secret put`.
+  "vars": {
+    "SITE_URL": "https://dailycoder.io",
+    "API_BASE_URL": "https://api.dailycoder.io",
+    "ALLOWED_ORIGINS": "https://dailycoder.io,https://www.dailycoder.io",
+    "FROM_ADDRESS": "The Daily Coder <puzzle@dailycoder.io>",
+    "REPLY_TO": "info@segosolutions.com",
+    "NOTION_DB_ID": "3b7aa03c-c162-80d3-af1e-fe55d65fa3c2",
+    "RESEND_AUDIENCE_ID": "2ec5097e-cb8d-4f87-b07c-68ff6682289f",
+    // Shown in every email footer. The postal address is there because
+    // US CAN-SPAM requires a physical mailing address in commercial email.
+    "CONTACT_LINE": "Sego Solutions · 414 S Service Rd, Suite #305 · Patchogue, NY 11772 · info@segosolutions.com"
+  },
+
+  // Used for signup throttling and the once-per-day send lock.
+  // Create with: wrangler kv namespace create RATE_LIMIT
+  "kv_namespaces": [
+    { "binding": "RATE_LIMIT", "id": "20f12ca8745c4e85b0433749c5d183d0" }
+  ],
+
+  "routes": [
+    { "pattern": "api.dailycoder.io", "custom_domain": true }
+  ]
+}
