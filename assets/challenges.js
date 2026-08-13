@@ -22,6 +22,73 @@
  */
 window.CHALLENGES = [
   {
+    id: "room-for-one-more",
+    date: "2026-08-13",
+    title: "Room for One More",
+    blurb: "One meeting room, a pile of invites. How many can you actually attend?",
+    difficulty: "Medium",
+    minutes: 12,
+    tags: ["greedy", "sorting"],
+    prompt:
+      "You have a single conference room and a list of meetings, each with a " +
+      "start and end time. A meeting that ends at 3:00 frees the room for one " +
+      "that starts at 3:00. Return the maximum number of meetings you can " +
+      "attend without any overlap.\n\n" +
+      "The natural instinct is to sort by start time and grab from the front — " +
+      "but a long meeting that starts early can clobber the whole day. The " +
+      "click is figuring out which endpoint to sort by instead, and why it " +
+      "works. Trace a small case on paper before you reach for code.",
+    examples: [
+      { in: "[(1,3), (2,4), (3,5), (0,6)]", out: "2" },
+      { in: "[(1,2), (2,3), (3,4), (1,4)]", out: "3" },
+      { in: "[(0,5), (3,6), (5,7), (6,8), (8,10)]", out: "3" }
+    ],
+    constraints: [
+      "Times are integers; a meeting [s, e) occupies [s, e) (end-exclusive).",
+      "Start times are not sorted — you get them in arbitrary order.",
+      "Aim for O(n log n)."
+    ],
+    whyItMatters:
+      "This is the canonical greedy: prove that the locally best choice — the " +
+      "meeting that ends earliest — is always safe, and the rest is a one-liner. " +
+      "That proof pattern (exchange argument: swapping in the earliest-ending " +
+      "meeting never makes things worse) is the engine behind interval " +
+      "scheduling, cache eviction, and most \"pick the best next step\" problems " +
+      "you'll meet for the rest of your career.",
+    hint:
+      "Sort by END time, not start time. Pick the earliest-ending meeting first, " +
+      "then keep grabbing the next meeting whose start is at or after the last " +
+      "chosen end. Ask yourself: why can swapping the earliest-ending meeting " +
+      "in for any other never reduce the count?",
+    solution: {
+      lang: "javascript",
+      code:
+        "function maxMeetings(meetings) {\n" +
+        "  // Greedy: the meeting that ends earliest leaves the most room behind it.\n" +
+        "  meetings.sort((a, b) => a[1] - b[1]);\n" +
+        "  let count = 0, lastEnd = -Infinity;\n" +
+        "  for (const [start, end] of meetings) {\n" +
+        "    if (start >= lastEnd) {\n" +
+        "      count++;\n" +
+        "      lastEnd = end;\n" +
+        "    }\n" +
+        "  }\n" +
+        "  return count;\n" +
+        "}",
+      notes:
+        "Why earliest end? Exchange argument: take any optimal schedule and " +
+        "swap its first meeting for the earliest-ending one. The swap never " +
+        "causes a new conflict, because the replacement ends no later than " +
+        "what it replaced — so the rest of the schedule still fits. By " +
+        "induction the greedy choice is always part of some optimal solution. " +
+        "The sort is O(n log n); the scan is O(n). Beware the classic wrong " +
+        "turn: sorting by start time and picking the first to finish among " +
+        "those starting earliest still works here, but it's a coincidence of " +
+        "this formulation — sorting by end directly is the idea that " +
+        "generalizes."
+    }
+  },
+  {
     id: "three-step-spin",
     date: "2026-08-12",
     title: "The Three-Step Spin",
