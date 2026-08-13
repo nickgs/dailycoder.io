@@ -1,18 +1,23 @@
 # Morning routine — publish today's puzzle
 
-Run this every morning at **6:15am ET**, 45 minutes ahead of the 7am send. The
-Worker's cron reads `https://dailycoder.io/today.json`; if that file's `date`
-isn't today, it deliberately sends nothing. So this routine finishing on time is
-what makes the newsletter go out.
+Runs every morning at **6:15am ET**, 45 minutes ahead of the 7am send, as the
+`dailycoder-daily-puzzle` cron job on libc-agents. The Worker's cron reads
+`https://dailycoder.io/today.json`; if that file's `date` isn't today, it
+deliberately sends nothing. So this routine finishing on time is what makes the
+newsletter go out.
 
-Working directory: `/Users/nickgs/Sites/dailycoder.io`
+**Working directory:** the repo root — `/srv/agents/nick/repos/dailycoder` on
+libc-agents. This checkout is the source of truth for `assets/challenges.js`;
+Nick's Mac pulls from it. Always start from a clean `git pull`.
 
 ## Steps
 
-1. **Read `assets/challenges.js`.** Note the last ~7 entries: their `difficulty`,
+1. **`git pull`** first, so you're not writing on top of a stale checkout.
+
+2. **Read `assets/challenges.js`.** Note the last ~7 entries: their `difficulty`,
    their `tags`, and the shape of the problems. You are avoiding repetition.
 
-2. **Write exactly one new challenge object** and prepend it to the array so it
+3. **Write exactly one new challenge object** and prepend it to the array so it
    becomes `index[0]`. Match the schema documented at the top of that file. Use
    today's date in `YYYY-MM-DD` (America/New_York). The `id` is a kebab-case slug
    and must be unique across the whole file — it becomes the permalink
@@ -20,16 +25,36 @@ Working directory: `/Users/nickgs/Sites/dailycoder.io`
 
    Do not touch any other file. Do not edit or reorder existing entries.
 
-3. **Run `node build.js`.** It refuses to build if the newest entry isn't first,
+4. **Run `node build.js`.** It refuses to build if the newest entry isn't first,
    so a green build confirms the ordering. It writes `dist/index.html`,
    `dist/today.json`, and `dist/puzzles.json`.
 
-4. **Publish `dist/`** to My Stack under project `dailycoder` (same project name
-   updates the live site in place).
+5. **Publish `dist/`** to My Stack — same project name updates the live site in
+   place:
 
-5. **Verify** — fetch `https://dailycoder.io/today.json` and confirm `date`
+   ```bash
+   npx -y -p @mystack.co/mcp mystack-push --dir ./dist --project dailycoder
+   ```
+
+   `MYSTACK_API_KEY` and `MYSTACK_API_URL` are already in the job's environment.
+
+6. **Verify** — fetch `https://dailycoder.io/today.json` and confirm `date`
    matches today and `title` is the new puzzle. If it doesn't match, the send
    will skip; say so loudly rather than leaving it silent.
+
+   Note: My Stack serves `index.html` with a 200 for unknown paths, so a missing
+   `today.json` arrives as HTML rather than a 404. If the response isn't valid
+   JSON, treat that as a failed publish, not a puzzle problem.
+
+7. **Commit and push** so the Mac and GitHub stay in sync:
+
+   ```bash
+   git add assets/challenges.js
+   git commit -m "Puzzle for <YYYY-MM-DD> — <title>"
+   git push
+   ```
+
+   Commit only `assets/challenges.js`. `dist/` is gitignored build output.
 
 ## Puzzle-quality guardrails
 
@@ -55,3 +80,6 @@ Publishing a broken or duplicate puzzle is worse than publishing nothing — the
 send is fail-safe by design. If you can't produce a puzzle you'd be happy to
 receive, stop, leave `challenges.js` untouched, and report why. The Worker will
 skip the send on its own and nobody gets a stale repeat.
+
+Never edit an existing puzzle to "fix" a bad run; that rewrites an archive entry
+subscribers may already have solved. Prepend a new one tomorrow instead.
