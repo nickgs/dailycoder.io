@@ -22,6 +22,33 @@
  */
 window.CHALLENGES = [
   {
+    id: "happy-or-looping",
+    date: "2026-08-14",
+    title: "Happy or Looping?",
+    blurb: "Replace a number with the sum of its squared digits, again and again. Does it reach 1 — or chase its tail forever?",
+    difficulty: "Easy",
+    minutes: 10,
+    tags: ["hashing", "math"],
+    prompt: "A positive integer is called \"happy\" if you can reach 1 by repeatedly replacing it with the sum of the squares of its digits. So 19 -> 1^2 + 9^2 = 82 -> 68 -> 100 -> 1: happy! Given a starting number, return whether it's happy.\n\nThe trap is the word \"repeatedly.\" A sequence that never hits 1 sounds like it could spiral off to infinity — so you might be tempted to give up after some fixed number of tries. Don't. The real question is: what can a sequence like this actually DO, and what does that tell you about how to detect the answer?",
+    examples: [
+      { in: "19", out: "true" },
+      { in: "2", out: "false" },
+      { in: "7", out: "true" }
+    ],
+    constraints: [
+      "Input is a positive integer (1 or greater).",
+      "Don't cap the iterations at an arbitrary cutoff — use a method that's correct, not lucky.",
+      "Aim for clean code; efficiency isn't the point here, the insight is."
+    ],
+    whyItMatters: "The aha is that this sequence can't run away. Once a number has three or more digits, the sum of squared digits is strictly smaller than the number itself (999 -> 243), so the values are trapped in a small bounded range. A bounded, deterministic sequence has only two possible fates: it reaches 1, or it lands on a value it has already visited and loops forever. That's why a Set — \"have I seen this value before?\" — is the whole algorithm. Recognizing that a problem is really about detecting a cycle, not about simulating forever, is the same instinct behind cycle detection in linked lists, infinite loops in state machines, and fixed-point iteration in numerical methods.",
+    hint: "Keep a Set of every value you've produced. Each step, compute the sum of squared digits. If it's 1, you're happy; if it's already in the Set, you've looped. Ask yourself: why is it impossible for the values to grow without bound?",
+    solution: {
+      lang: "javascript",
+      code: "function isHappy(n) {\n  const seen = new Set();\n  while (n !== 1 && !seen.has(n)) {\n    seen.add(n);\n    n = String(n)\n      .split('')\n      .reduce((sum, d) => sum + d * d, 0);\n  }\n  return n === 1;\n}",
+      notes: "The loop halts the moment n hits 1 (happy) or revisits a value (looping). The Set is doing the cycle detection. Why is this guaranteed to terminate? For any number of three or more digits, the next value is smaller — a k-digit number n is at most 10^k - 1, but its digit-square sum is at most 81k, and for k >= 3 we have 81k < 10^k - 1. So the sequence is forced down into the single- and double-digit range (at most 162 for two digits, 243 for three), a finite set of values. A deterministic walk on a finite set either hits its target or repeats — there is no third option, no infinite drift. That's the whole proof, and the Set simply catches the repeat. Trivia: every non-happy number eventually falls into the same cycle 4 -> 16 -> 37 -> 58 -> 89 -> 145 -> 42 -> 20 -> 4."
+    }
+  },
+  {
     id: "room-for-one-more",
     date: "2026-08-13",
     title: "Room for One More",
