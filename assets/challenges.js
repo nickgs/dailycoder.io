@@ -22,6 +22,33 @@
  */
 window.CHALLENGES = [
   {
+    id: "take-the-stairs",
+    date: "2026-08-15",
+    title: "Take the Stairs",
+    blurb: "A staircase of n steps, and you can climb 1 or 2 at a time. How many distinct ways up?",
+    difficulty: "Medium",
+    minutes: 10,
+    tags: ["recursion", "dynamic-programming"],
+    prompt: "You're at the bottom of a staircase with n steps. Each move you can climb either 1 step or 2 steps. How many distinct ways are there to reach the top?\n\nThe natural first thought is recursion: to land on step n you must have come from step n-1 (a 1-step move) or from step n-2 (a 2-step move), so the answer for n is the sum of the answers for n-1 and n-2. That's correct — and it's also Fibonacci, which means a naive recursion recomputes the same subproblems over and over. The click is two-fold: see the recurrence, then realize you only ever need the last two values to climb your way to the answer.",
+    examples: [
+      { in: "2", out: "2" },
+      { in: "3", out: "3" },
+      { in: "5", out: "8" }
+    ],
+    constraints: [
+      "n is a positive integer (1 or more).",
+      "The naive recursive solution is correct but exponential — aim for O(n) time.",
+      "Bonus: can you do it with O(1) extra space?"
+    ],
+    whyItMatters: "This is the gentlest possible introduction to dynamic programming. The whole field rests on one move: describe the answer to a problem in terms of the answers to smaller versions of itself, then compute bottom-up so each subproblem is solved exactly once. 'What was my last decision?' is the question that turns a scary counting problem into a recurrence — and that same question, asked of trees, grids, and coin-change problems, is how you'll derive a dozen more DP solutions later.",
+    hint: "Write out ways(1), ways(2), ways(3), ways(4) by hand. Notice the pattern. Then ask: to compute ways(n), which two earlier answers do I need to keep around — and can I throw the rest away?",
+    solution: {
+      lang: "javascript",
+      code: "function climbStairs(n) {\n  if (n <= 2) return n;\n  let prev = 1, curr = 2;        // ways(1), ways(2)\n  for (let i = 3; i <= n; i++) {\n    [prev, curr] = [curr, prev + curr];\n  }\n  return curr;\n}",
+      notes: "The recurrence is ways(n) = ways(n-1) + ways(n-2): your last move was a single step (from n-1) or a double step (from n-2), and those cases don't overlap. That's Fibonacci, shifted by one — ways(1)=1, ways(2)=2, ways(3)=3, ways(4)=5, ways(5)=8. The naive recursion is O(2^n) because it re-solves the same subproblems; the fix is to compute upward and keep only the last two values, making it O(n) time and O(1) space. The destructuring swap [prev, curr] = [curr, prev + curr] rolls the window forward without a temp. This 'last decision' framing is the seed of all dynamic programming."
+    }
+  },
+  {
     id: "happy-or-looping",
     date: "2026-08-14",
     title: "Happy or Looping?",
