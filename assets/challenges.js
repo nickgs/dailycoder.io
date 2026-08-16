@@ -22,6 +22,33 @@
  */
 window.CHALLENGES = [
   {
+    id: "backspace-to-the-future",
+    date: "2026-08-16",
+    title: "Backspace to the Future",
+    blurb: "Two strings typed on a terminal with a '#' backspace key. Do they leave the same page behind?",
+    difficulty: "Easy",
+    minutes: 8,
+    tags: ["stacks", "two-pointers"],
+    prompt: "Two friends type messages on an old terminal where the '#' character means \"backspace\" — it deletes the previous character that's still on the page (if there is one). Backspacing past the start of the line just leaves an empty line. Given two strings s and t, return whether the text they end up with is the same.\n\nThe reflex is to process left-to-right and delete in place — but in-place deletion means shifting characters or juggling a write pointer, and it's easy to fumble the \"which characters are already gone?\" bookkeeping. The click is to model the page itself: what's actually sitting on it at any moment is a stack of survivors. Push a letter, pop on a '#'. Then the comparison is just \"are the two stacks equal?\" — and you never think about deletion bookkeeping again.",
+    examples: [
+      { in: "s = \"ab#c\", t = \"ad#c\"", out: "true" },
+      { in: "s = \"ab##\", t = \"c#d#\"", out: "true" },
+      { in: "s = \"a#c\", t = \"b\"", out: "false" }
+    ],
+    constraints: [
+      "Strings contain only lowercase letters and '#'.",
+      "'#' deletes the most recent non-deleted character; backspacing an empty line leaves it empty.",
+      "Aim for O(n + m) time."
+    ],
+    whyItMatters: "The stack isn't a convenience here — it's the honest model of the problem. The page holds a sequence of surviving characters, and backspace only ever removes the most recent survivor, which is exactly LIFO behavior. Recognizing that a messy \"delete and shift\" task is really a stack is the same instinct that turns parentheses matching, undo buffers, and browser history into one-liners. There's a second click hiding here too: because every '#' only affects characters to its left, you can read the strings backward and skip the right number of deleted characters, solving it in O(1) extra space. Two models, one problem — the stack models what's left, the backward read models what was erased.",
+    hint: "Process each string into a stack: push a letter, pop on '#'. An empty pop is a no-op, so backspacing an empty line costs nothing. When both stacks are built, are they the same string? For a stretch: can you do it reading from the right and skipping characters that get backspaced?",
+    solution: {
+      lang: "javascript",
+      code: "function backspaceCompare(s, t) {\n  const type = (str) => {\n    const stack = [];\n    for (const ch of str) {\n      if (ch === '#') stack.pop();\n      else stack.push(ch);\n    }\n    return stack.join('');\n  };\n  return type(s) === type(t);\n}",
+      notes: "Each string becomes its surviving text in one pass: a letter is pushed onto the stack, a '#' pops the top (Array.prototype.pop on an empty array is a no-op, so backspacing an empty line is free). Comparing the two joined stacks is the answer. Trace the examples: 'ab#c' -> push a, push b, pop b -> [a], push c -> 'ac'; 'ad#c' -> 'ac'; equal, true. 'ab##' -> [a, b], pop b, pop a -> '' ; 'c#d#' -> [c], pop c, [d], pop d -> '' ; equal, true. 'a#c' -> pop a, push c -> 'c'; 'b' -> 'b' ; 'c' !== 'b', false. That's O(n+m) time and O(n+m) space. The O(1)-space version reads each string from the right: keep a 'skip' counter that increments on '#' and decrements when you pass a real (non-#) character to skip over it; when skip is 0 you've found a survivor. Compare survivors pairwise from the end. It's the same idea — '#' only erases to its left — viewed from the opposite direction."
+    }
+  },
+  {
     id: "take-the-stairs",
     date: "2026-08-15",
     title: "Take the Stairs",
