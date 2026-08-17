@@ -22,6 +22,33 @@
  */
 window.CHALLENGES = [
   {
+    id: "hungry-hungry-koko",
+    date: "2026-08-17",
+    title: "Hungry, Hungry Koko",
+    blurb: "Piles of bananas, a deadline in hours. What's the slowest Koko can eat and still finish in time?",
+    difficulty: "Medium",
+    minutes: 12,
+    tags: ["binary-search", "arrays"],
+    prompt: "Koko has n piles of bananas. Each hour she picks one pile and eats up to k bananas from it — if the pile has fewer than k, she eats the whole pile and waits out the hour. Given the pile sizes and a deadline of h hours, find the minimum integer eating speed k that lets her finish every pile in time.\n\nThe reflex is to try every speed from 1 upward until one works — and that's correct but painfully slow, because the answer could be as high as the biggest pile. The click is a reframe: you're not searching a pile or an index, you're searching the answer itself. The set of speeds that work is a range [min, ∞), so the boundary between \"too slow\" and \"fast enough\" is a single number — and a single number sitting on a sorted line is binary search waving at you.",
+    examples: [
+      { in: "piles = [3,6,7,11], h = 8", out: "4" },
+      { in: "piles = [30,11,23,4,20], h = 6", out: "23" },
+      { in: "piles = [1,1,1,1], h = 4", out: "1" }
+    ],
+    constraints: [
+      "piles[i] and h are positive integers; h is at least the number of piles (she can only touch one pile per hour).",
+      "Eating speed k is a positive integer — no fractional bananas per hour.",
+      "Aim for O(n log m) where m is the largest pile."
+    ],
+    whyItMatters: "Binary searching the answer space is one of the most transferable tricks in algorithm design. Any time the question is 'what is the smallest X such that some condition holds' — and the condition is monotone (once X is big enough, it stays big enough) — you can binary search X. That same frame cracks 'minimize the largest sum when splitting an array', 'smallest capacity to ship packages in D days', and 'minimum time to complete tasks'. The pile-eating itself is elementary arithmetic; the cleverness is all in recognizing that you're searching a value, not a position.",
+    hint: "Fix a speed k and ask: how many hours would it take? That's just the sum of ceil(pile / k) across all piles — O(n). If that total fits in h, k is fast enough. The answer is the smallest k that's fast enough. So binary search k between 1 and max(piles): if mid works, try slower; if not, speed up.",
+    solution: {
+      lang: "javascript",
+      code: "function minEatingSpeed(piles, h) {\n  let lo = 1;\n  let hi = Math.max(...piles);\n  while (lo < hi) {\n    const mid = Math.floor((lo + hi) / 2);\n    const hours = piles.reduce((s, p) => s + Math.ceil(p / mid), 0);\n    if (hours <= h) {\n      hi = mid;       // mid is fast enough — can we go slower?\n    } else {\n      lo = mid + 1;   // too slow, speed up\n    }\n  }\n  return lo;\n}",
+      notes: "The search range is [1, max(piles)]: at speed 1 she eats one banana per hour (likely too slow); at max(piles) she clears any pile in a single hour, so the total is exactly n hours — always fast enough since h >= n. Each mid probe costs O(n) to sum the ceilings, and we do O(log max(piles)) probes, so it's O(n log m) overall. Trace example 1: piles [3,6,7,11], h=8. mid=6 → 1+1+2+2=6 hours, fits, try slower (hi=6). mid=3 → 1+2+3+4=10, too slow (lo=4). mid=5 → 1+2+2+3=8, fits (hi=5). mid=4 → 1+2+2+3=8, fits (hi=4). lo=hi=4, done. The two things people miss: the upper bound is max(piles) not some arbitrary big number, and Math.ceil(p / mid) must use floating division — integer division truncates and silently breaks the count. The monotonicity that makes binary search valid: if speed k finishes in time, every speed above k also finishes in time, so 'fast enough' is a clean threshold."
+    }
+  },
+  {
     id: "backspace-to-the-future",
     date: "2026-08-16",
     title: "Backspace to the Future",
