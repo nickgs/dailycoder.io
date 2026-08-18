@@ -51,6 +51,12 @@ a:hover { text-decoration: underline; }
   background: var(--paper-2); border: 1px solid var(--rule);
   border-radius: 999px; padding: 3px 11px; color: var(--terracotta-d);
   font-weight: 600;
+  text-decoration: none; cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.masthead-top .streak-chip:hover,
+.masthead-top .streak-chip:focus-visible {
+  background: var(--paper); border-color: var(--terracotta-d);
 }
 .logo {
   text-align: center; padding: 18px 0 6px;
@@ -162,6 +168,8 @@ a:hover { text-decoration: underline; }
 }
 .btn-primary:hover { background: var(--terracotta-d); }
 .btn-solved.is-done { background: var(--sage); border-color: var(--sage); color:#fff; }
+.btn-share { border-color: var(--navy); color: var(--navy); }
+.btn-share:hover { background: #eef1f4; border-color: var(--navy); }
 
 .disclosure { margin-top: 18px; display: none; }
 .disclosure.open { display: block; animation: fade .25s ease; }

@@ -5,7 +5,8 @@
   var LS = {
     solved: "dc_solved",      // array of solved challenge ids
     streak: "dc_streak",      // { count, last }  last = YYYY-MM-DD
-    email: "dc_subscribed"
+    email: "dc_subscribed",
+    solveMode: "dc_solve_mode" // { [id]: "clean" | "hint" | "solution" }
   };
 
   // ---- tiny storage helpers ----
@@ -47,11 +48,15 @@
 
   function isSolved(id) { return solved.indexOf(id) !== -1; }
 
-  function markSolved(id) {
-    if (isSolved(id)) return;
-    solved.push(id);
-    set(LS.solved, solved);
-    bumpStreak();
+  function markSolved(id, mode) {
+    if (!isSolved(id)) {
+      solved.push(id);
+      set(LS.solved, solved);
+      bumpStreak();
+    }
+    var modes = get(LS.solveMode, {});
+    modes[id] = mode || modes[id] || "clean";
+    set(LS.solveMode, modes);
   }
 
   // ---- streak: counts consecutive days you marked something solved ----
@@ -78,6 +83,22 @@
     if (el) el.textContent = n > 0 ? "🔥 " + n + " day streak" : "🔥 Start your streak";
   }
 
+  // the chip is a link to the signup form — scroll it into view and put the
+  // cursor in the email field so the next thing you do is type.
+  function wireStreakChip() {
+    var chip = document.getElementById("streak-chip");
+    var form = document.getElementById("signup-form");
+    if (!chip || !form) return;
+
+    chip.addEventListener("click", function (e) {
+      e.preventDefault();
+      var section = document.getElementById("newsletter");
+      section.scrollIntoView({ behavior: "smooth", block: "center" });
+      var input = form.querySelector('input[name="email"]');
+      if (input) setTimeout(function () { input.focus({ preventScroll: true }); }, 400);
+    });
+  }
+
   // ---- toast ----
   var toastTimer;
   function toast(msg) {
@@ -85,6 +106,60 @@
     t.textContent = msg; t.classList.add("show");
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { t.classList.remove("show"); }, 2600);
+  }
+
+  // ---- share ----
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(ta);
+    return Promise.resolve();
+  }
+
+  function shareText(c) {
+    var url = "https://dailycoder.io/?p=" + encodeURIComponent(c.id);
+    var num = c.number ? "No. " + c.number + ": " : "";
+
+    if (!isSolved(c.id)) {
+      return {
+        text: "🧩 The Daily Coder — " + num + "“" + c.title + "”. " +
+          "Ten quiet minutes, no leaderboard. Try it →",
+        url: url
+      };
+    }
+
+    var modes = get(LS.solveMode, {});
+    var mode = modes[c.id] || "clean";
+    var badge = mode === "solution" ? "🟠 peeked at the solution"
+      : mode === "hint" ? "🟡 used a hint"
+      : "🟩 solved it clean";
+    var streak = currentStreak();
+    var streakPart = streak > 1 ? " · 🔥 " + streak + "-day streak" : "";
+
+    return {
+      text: "The Daily Coder — " + num + "“" + c.title + "”\n" +
+        badge + streakPart + "\nTry it yourself →",
+      url: url
+    };
+  }
+
+  function doShare(c) {
+    var s = shareText(c);
+    if (navigator.share) {
+      navigator.share({ text: s.text, url: s.url }).catch(function () {});
+      return;
+    }
+    copyText(s.text + " " + s.url).then(function () {
+      toast("Copied! Paste it anywhere 🔗");
+    });
   }
 
   // ---- render today's challenge ----
@@ -102,6 +177,7 @@
     var solvedNow = isSolved(c.id);
     return (
       '<div class="badges">' +
+        (c.number ? '<span class="badge">No. ' + c.number + "</span>" : "") +
         '<span class="badge diff-' + c.difficulty + '">' + c.difficulty + "</span>" +
         '<span class="badge">⏱ ~' + c.minutes + " min</span>" +
         c.tags.map(function (t) { return '<span class="badge">#' + esc(t) + "</span>"; }).join("") +
@@ -123,6 +199,7 @@
         '<button class="btn btn-solved' + (solvedNow ? " is-done" : "") + '" data-act="solved">' +
           (solvedNow ? "✓ Solved" : "✓ I solved it") +
         "</button>" +
+        '<button class="btn btn-share" data-act="share">🔗 Share</button>' +
       "</div>" +
       '<div class="disclosure" data-disc="hint">' +
         '<div class="subhead">Hint</div>' +
@@ -143,12 +220,17 @@
         var disc = root.querySelector('[data-disc="' + act + '"]');
         disc.classList.toggle("open");
         if (disc.classList.contains("open")) disc.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        if (act === "hint") root.dataset.hintOpened = "1";
+        if (act === "solution") root.dataset.solutionOpened = "1";
       } else if (act === "solved") {
-        markSolved(c.id);
+        var mode = root.dataset.solutionOpened ? "solution" : root.dataset.hintOpened ? "hint" : "clean";
+        markSolved(c.id, mode);
         btn.classList.add("is-done");
         btn.textContent = "✓ Solved";
         toast("Nice. Streak counted for today 🔥");
         refreshArchiveStates();
+      } else if (act === "share") {
+        doShare(c);
       }
     });
   }
@@ -237,6 +319,8 @@
     var data = window.CHALLENGES || [];
     if (!data.length) return;
 
+    data.forEach(function (c, i) { c.number = data.length - i; });
+
     var today = data[0];
     var rest = data.slice(1);
 
@@ -278,6 +362,7 @@
     document.addEventListener("keydown", function (e) { if (e.key === "Escape") back.classList.remove("open"); });
 
     wireNewsletter();
+    wireStreakChip();
 
     // deep link: /?p=<challenge-id> opens that puzzle. This is what the daily
     // email links to, so a reader can jump straight to the hint and solution.
