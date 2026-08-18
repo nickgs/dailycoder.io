@@ -22,6 +22,33 @@
  */
 window.CHALLENGES = [
   {
+    id: "lingering-poison",
+    date: "2026-08-18",
+    title: "The Lingering Poison",
+    blurb: "Each attack coats the target in poison for d seconds, refreshing on every hit. How long is it poisoned in total?",
+    difficulty: "Easy",
+    minutes: 8,
+    tags: ["simulation", "greedy"],
+    prompt: "A creature attacks a target at a series of integer seconds (given as a sorted list timeSeries) and each hit applies a coat of poison that lasts duration seconds. If a new attack lands while the target is still poisoned, the timer refreshes — the poison now lasts duration seconds from that new hit, swallowing any leftover time from the previous coat. Return the total number of seconds the target spends poisoned.\n\nThe reflex is to simulate every second on a clock — and for small inputs that's fine, but the duration can be huge (millions of seconds) and a per-second walk blows up. The click is to stop asking 'is it poisoned at second t?' and start asking, for each attack, 'how much NEW poisoned time does this coat actually contribute?' Two coats that overlap only add the non-overlapping part, and that part is the smaller of the duration and the gap to the next attack.",
+    examples: [
+      { in: "timeSeries = [1, 4], duration = 2", out: "4" },
+      { in: "timeSeries = [1, 2], duration = 2", out: "3" },
+      { in: "timeSeries = [1, 2, 3, 4, 5], duration = 5", out: "9" }
+    ],
+    constraints: [
+      "timeSeries is sorted in non-decreasing order; times are non-negative integers.",
+      "duration is a non-negative integer (zero means no poison at all).",
+      "Aim for O(n) time and O(1) space — do not simulate second-by-second."
+    ],
+    whyItMatters: "This is the friendliest possible introduction to interval merging. 'Merge overlapping intervals' is a pattern that shows up everywhere: meeting rooms, disk scheduling, range queries, calendar conflicts. The deep idea here is that you never need to build the merged intervals — each attack's real contribution is just min(duration, gap-to-next), because overlap can only eat into the trailing end of a coat, never add to it. That reframe — 'each item contributes the capped gap to its neighbor' — turns an O(n)-space merge into an O(1) running sum. Learning to ask 'how much does this one step actually add?' instead of 'what is the full state?' is the move that scales simulation from toy to real.",
+    hint: "For attack i, the poison it lays down would last until timeSeries[i] + duration. But the next attack at timeSeries[i+1] may cut that short — everything between this attack and the next is poisoned for sure, and anything after the next hit is covered by a later coat anyway. So each attack contributes min(duration, timeSeries[i+1] - timeSeries[i]), except the very last attack, which contributes the full duration.",
+    solution: {
+      lang: "javascript",
+      code: "function findPoisonedDuration(timeSeries, duration) {\n  if (duration === 0) return 0;\n  let total = 0;\n  for (let i = 0; i < timeSeries.length; i++) {\n    const next = timeSeries[i + 1];\n    const gap = (next === undefined) ? duration : next - timeSeries[i];\n    total += Math.min(duration, gap);\n  }\n  return total;\n}",
+      notes: "Each attack contributes min(duration, gap-to-next); the last attack has no next, so it contributes the full duration. Trace example 1: [1,4], dur 2. Attack at 1: gap = 4-1 = 3, contributes min(2,3)=2 (coat would reach second 3, but the next attack at 4 lands after it expired — no overlap, so the full 2 are new). Attack at 4 (last): contributes the full 2, reaching second 6. Total 4 — two disjoint intervals [1,3) and [4,6). Trace example 2: [1,2], dur 2. Attack at 1: gap = 2-1 = 1, contributes min(2,1)=1 (the coat would reach 3, but the attack at 2 refreshes it, so only the second 1->2 is new). Attack at 2 (last): contributes the full 2, reaching second 4. Total 3 — the merged interval is [1,4), length 3. Trace example 3: [1,2,3,4,5], dur 5. Gaps are all 1 except the last. Contributions: 1+1+1+1+5 = 9, matching the single merged interval [1, 5+5) = [1,10), length 9. The duration===0 guard handles the degenerate 'no poison' case without special-casing the loop. Time O(n), space O(1). The transferable lesson: when a simulation asks 'is the target affected at time t?', ask instead 'how much effect does each event add?' — the per-event sum is almost always cheaper than the per-tick walk."
+    }
+  },
+  {
     id: "hungry-hungry-koko",
     date: "2026-08-17",
     title: "Hungry, Hungry Koko",
