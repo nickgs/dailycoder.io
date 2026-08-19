@@ -22,6 +22,34 @@
  */
 window.CHALLENGES = [
   {
+    id: "loners-party-of-two",
+    date: "2026-08-19",
+    title: "Loners, Party of Two",
+    blurb: "Every number appears twice — except two of them. Find both, without using any extra memory.",
+    difficulty: "Medium",
+    minutes: 12,
+    tags: ["bit-tricks", "arrays"],
+    prompt: "You're handed a list where every value appears exactly twice, except for two distinct values that each appear once. Return both loners, in any order.\n\nIf you've met the one-loner version of this, your hand already knows the move: XOR the whole list and the pairs cancel themselves out. Try it here and you get something frustrating — not an answer, but a ^ b, the two loners fused into a single number you can't pull apart.\n\nThat fused number is not a dead end, though. It's a map. The click is realizing what a 1 bit in a ^ b actually tells you: it marks a position where a and b disagree. And a position where the two answers disagree is a rule you can sort the entire list by — one that is guaranteed to put a and b in different rooms, while keeping every duplicate pair together in the same room.",
+    examples: [
+      { in: "[1, 2, 1, 3, 2, 5]", out: "[3, 5]" },
+      { in: "[4, 4, 7, 9]", out: "[7, 9]" },
+      { in: "[0, 1]", out: "[0, 1]" }
+    ],
+    constraints: [
+      "Every value appears exactly twice except two distinct values, which appear once each.",
+      "Values fit in 32-bit signed integers; the list has at least two elements.",
+      "Return order does not matter.",
+      "A hash map is a fine warm-up, but aim for O(n) time and O(1) extra space."
+    ],
+    whyItMatters: "One equation, two unknowns is a wall you hit constantly, and the way through is almost never more algebra — it's finding a way to split the population so each half contains exactly one unknown. That's the whole trick here, and it's why this puzzle is worth more than the bit manipulation it's dressed in. XOR hands you a ^ b, which looks like a loss; it's actually a difference map, because every 1 bit in it is a coordinate where the two answers provably disagree. Pick any one of those coordinates and it becomes a partition rule with two properties you need: it separates a from b (they differ there, by construction), and it never separates a duplicate pair (identical numbers agree on every bit). So each room now holds one loner plus a pile of self-cancelling pairs — which is exactly the easy version of this problem, twice. The transferable habit: when a signal collapses two things you want into one thing you don't, ask what that combined signal still tells you about how they differ. A difference is often enough to divide by, even when it isn't enough to answer with.",
+    hint: "XOR everything together. You won't get a or b — you'll get a ^ b. Now stare at that result bit by bit: a 1 can only appear where a and b disagree, so pick one such bit and ask which of the two loners has it set. Sorting the whole list by that single bit puts a in one bucket and b in the other, while both copies of every duplicate always land in the same bucket. The lowest set bit is the easiest one to grab: x & -x isolates it in one step.",
+    solution: {
+      lang: "javascript",
+      code: "function twoLoners(nums) {\n  let xorAll = 0;\n  for (const n of nums) xorAll ^= n;\n\n  // Every 1 bit here marks a position where the two loners differ.\n  // Isolate the lowest one; any single differing bit would do.\n  const bit = xorAll & -xorAll;\n\n  let a = 0, b = 0;\n  for (const n of nums) {\n    if (n & bit) a ^= n;\n    else b ^= n;\n  }\n  return [a, b];\n}",
+      notes: "Two passes, four variables, no allocation. Pass one XORs everything down to a ^ b, since every duplicate pair cancels. That value is never 0 — the two loners are distinct, so they must differ somewhere — which guarantees at least one 1 bit to work with. x & -x isolates the lowest of them: in two's complement, -x is ~x + 1, so x and -x agree on exactly one bit, the lowest set one. Pass two sorts by that bit and XORs each bucket down; duplicates cancel inside whichever bucket they land in, leaving one loner per side.\n\nTrace example 1: [1, 2, 1, 3, 2, 5]. The 1s and 2s cancel, so xorAll = 3 ^ 5 = 011 ^ 101 = 110 = 6. Then bit = 6 & -6 = 2 (binary 010). Bucket 'bit set' collects 2 (010), 3 (011), 2 (010) and XORs to 3; bucket 'bit clear' collects 1, 1, 5 and XORs to 5. Result [3, 5].\n\nTrace example 2: [4, 4, 7, 9]. The 4s cancel, xorAll = 7 ^ 9 = 0111 ^ 1001 = 1110 = 14, and bit = 14 & -14 = 2. Only 7 has bit 1 set, so that bucket XORs to 7; 4, 4 and 9 fill the other and cancel down to 9. Result [7, 9].\n\nTrace example 3: [0, 1]. xorAll = 1, bit = 1, buckets are [1] and [0]. Result [1, 0] — order is unspecified, and 0 falling out correctly is the reassuring part, since it is exactly the value that breaks approaches built on products or truthiness checks.\n\nTime O(n), space O(1). Picking the lowest set bit is convention, not necessity — any differing bit partitions just as well, and x & -x is simply the cheapest way to name one."
+    }
+  },
+  {
     id: "lingering-poison",
     date: "2026-08-18",
     title: "The Lingering Poison",
