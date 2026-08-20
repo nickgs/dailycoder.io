@@ -22,6 +22,33 @@
  */
 window.CHALLENGES = [
   {
+    id: "double-vision",
+    date: "2026-08-20",
+    title: "Double Vision",
+    blurb: "Is one string just the other spun around? One concatenation settles it.",
+    difficulty: "Easy",
+    minutes: 6,
+    tags: ["strings", "two-pointers"],
+    prompt: "You're given two strings, s and goal. Return whether goal is a rotation of s — that is, whether you can obtain goal by taking some characters off the front of s and sticking them on the back (or equivalently, spinning s around its own center). \"abcde\" spun right by two becomes \"cdeab\"; spun by zero it stays \"abcde\".\n\nThe reflex is to try every rotation: spin by 0, by 1, by 2, ... up to n-1, and compare each to goal. That's correct, and for short strings it's fine — but each spin costs O(n) work and there are n of them, so O(n^2) overall. The click is one sentence long and it turns the whole thing into a single substring check. No loops over rotations, no slicing, no two-pointer walk. Just glue the string to itself and look.",
+    examples: [
+      { in: "s = \"abcde\", goal = \"cdeab\"", out: "true" },
+      { in: "s = \"abcde\", goal = \"abced\"", out: "false" },
+      { in: "s = \"aa\", goal = \"a\"", out: "false" }
+    ],
+    constraints: [
+      "Both strings contain any characters; case matters (\"A\" !== \"a\").",
+      "A string is always a rotation of itself (spin by zero).",
+      "Aim for O(n) time."
+    ],
+    whyItMatters: "This is a lesson in structural reframing: instead of enumerating every transformation and testing each one, build a single structure that contains all of them at once and search it. Concatenating s to itself produces a string in which every rotation of s appears as a contiguous substring — starting at index k you read exactly s[k:] + s[:k]. So \"is goal a rotation?\" collapses to \"is goal a substring of s+s?\", and a substring search is O(n). That instinct — don't generate-and-test, embed-and-search — is the same one behind suffix arrays, rolling hashes, and the way databases index text. There's a second, smaller lesson in the length guard: without it, \"a\" would match inside \"a\"+\"a\" and give a false positive, because a fragment of a rotation is not a rotation. Equality of length is what promotes a mere substring into a genuine rotation.",
+    hint: "Write s next to itself: s + s. Now every position you start reading n characters from gives you exactly one rotation of s. So goal is a rotation of s exactly when it appears as a substring of s+s — provided the two strings are the same length. Guard the length first, then do the one check.",
+    solution: {
+      lang: "javascript",
+      code: "function rotateString(s, goal) {\n  return s.length === goal.length && (s + s).includes(goal);\n}",
+      notes: "The length guard short-circuits the false cases where goal is a fragment rather than a full rotation; only when the lengths match does the substring check even run. Trace example 1: s=\"abcde\", goal=\"cdeab\". Lengths equal (5). s+s = \"abcdeabcde\". Reading 5 characters starting at index 2 gives \"cdeab\" — a match, so true. Trace example 2: s=\"abcde\", goal=\"abced\". Lengths equal. s+s = \"abcdeabcde\"; its length-5 substrings are \"abcde\", \"bcdea\", \"cdeab\", \"deabc\", \"eabcd\" (and then they repeat). \"abced\" never appears, so false — it isn't any rotation, only a transposition. Trace example 3: s=\"aa\", goal=\"a\". Lengths differ (2 vs 1), so the guard returns false without ever running the search. This is the case that punishes a naive \"does s+s contain goal?\" — without the guard, \"a\" would be found inside \"aaaa\" and you'd wrongly answer true.\n\nWhy the construction is complete: s+s contains exactly the n rotations of s as its length-n substrings (starting at indices 0 through n-1), so a length-equal substring of s+s is provably a rotation, and every rotation is provably found. The empty-string edge case falls out for free: both empty, lengths equal, \"\" is a substring of \"\", true. Time O(n) — the cost of a linear substring search; space O(n) to hold the doubled string."
+    }
+  },
+  {
     id: "loners-party-of-two",
     date: "2026-08-19",
     title: "Loners, Party of Two",
