@@ -22,6 +22,33 @@
  */
 window.CHALLENGES = [
   {
+    id: "can-you-reach-the-exit",
+    date: "2026-08-22",
+    title: "Can You Reach the Exit?",
+    blurb: "An array of jump powers and one question: can you get from the front door to the exit?",
+    difficulty: "Medium",
+    minutes: 10,
+    tags: ["greedy", "arrays"],
+    prompt: "You're standing at the front of an array. Each cell tells you the maximum number of steps you can jump forward from that position — so if nums[i] is 3, you can jump to i+1, i+2, or i+3 (or stay put and jump 0). Starting at index 0, can you reach the last index?\n\nThe reflex is to explore: from index 0, try every jump length, then from each landing spot try every jump length again, branching like a tree. That's correct — and it's exponential, because the same positions get revisited from different paths. You could memoize, but why build a search at all when the question isn't 'what's the path?' but merely 'is the exit within reach?'\n\nThe click is a single variable. Walk left to right and keep track of the furthest index you can currently reach. At each position, if it's within reach, extend your reach using its jump power. The moment your reach meets or passes the last index, you're done. The moment you arrive at a position beyond your reach, you're stuck — there's a gap you can't cross, and no amount of clever pathfinding changes that.",
+    examples: [
+      { in: "nums = [2, 3, 1, 1, 4]", out: "true" },
+      { in: "nums = [3, 2, 1, 0, 4]", out: "false" },
+      { in: "nums = [0]", out: "true" }
+    ],
+    constraints: [
+      "nums[i] is a non-negative integer (zero means you can't jump from that spot).",
+      "The array has at least one element; a single-element array is trivially reachable.",
+      "Aim for O(n) time and O(1) space — no recursion, no memoization, no backtracking."
+    ],
+    whyItMatters: "This puzzle teaches the single most useful greedy instinct: when the question is 'can I get there?' rather than 'what's the best way?', you often don't need to plan a route at all — you just need to track a frontier. The furthest-reachable index is that frontier. It only moves forward, it only grows, and it collapses the entire branching search into one pass. That same instinct — replace 'explore all paths' with 'maintain the set of reachable states' — is what turns BFS into DP, what makes interval scheduling a sort-then-sweep, and what powers every reachability check from regex matching to garbage collection. The deeper lesson: when a problem feels like search, ask whether the answer depends on which path you take or merely on whether a path exists. If only existence matters, a frontier variable is almost always enough.",
+    hint: "You don't need to know HOW you get to the exit — only WHETHER you can. Keep one variable: the furthest index reachable so far. Walk the array; at each index i, if i is within reach, update reach to max(reach, i + nums[i]). If reach ever reaches the last index, return true. If i ever passes reach, return false — there's a gap you can't cross.",
+    solution: {
+      lang: "javascript",
+      code: "function canJump(nums) {\n  let reach = 0;\n  const last = nums.length - 1;\n  for (let i = 0; i < nums.length; i++) {\n    if (i > reach) return false;       // gap — can't get here\n    reach = Math.max(reach, i + nums[i]);\n    if (reach >= last) return true;    // exit is in range\n  }\n  return reach >= last;\n}",
+      notes: "One pass, one variable, no allocation. The loop walks each index in order; reach is the furthest position any visited cell can launch you to. Two early exits make it clean: if i > reach, you've hit a position nobody can jump to, so the exit is unreachable; if reach >= last, the exit is already within range, so you're done.\n\nTrace example 1: [2,3,1,1,4], last = 4. i=0: 0 ≤ reach(0), reach = max(0, 0+2) = 2. i=1: 1 ≤ 2, reach = max(2, 1+3) = 4. 4 ≥ 4 → true. (You don't even need to look at the rest — the exit is in range from index 1.)\n\nTrace example 2: [3,2,1,0,4], last = 4. i=0: reach = max(0, 0+3) = 3. i=1: reach = max(3, 1+2) = 3. i=2: reach = max(3, 2+1) = 3. i=3: reach = max(3, 3+0) = 3. i=4: 4 > 3 → false. The zero at index 3 creates a dead zone — every path lands on or before index 3, and from there nobody can jump past it. No amount of route-finding changes that, which is exactly why the greedy works: the frontier can't lie.\n\nTrace example 3: [0], last = 0. i=0: 0 ≤ 0, reach = max(0, 0+0) = 0. 0 ≥ 0 → true. You're already at the exit.\n\nTime O(n), space O(1). The key insight is monotonicity: reach only increases, so there's no backtracking, no revisiting, no state to store. The problem asks 'is there a path?' and the frontier variable answers it without ever constructing one."
+    }
+  },
+  {
     id: "double-vision",
     date: "2026-08-20",
     title: "Double Vision",
