@@ -22,6 +22,33 @@
  */
 window.CHALLENGES = [
   {
+    id: "there-is-no-column-zero",
+    date: "2026-08-23",
+    title: "There Is No Column Zero",
+    blurb: "Excel numbers its columns A, B, ... Z, AA, AB ... — but the conversion hides a trap. There's no zero digit.",
+    difficulty: "Easy",
+    minutes: 8,
+    tags: ["math", "strings"],
+    prompt: "Spreadsheets label columns with letters instead of numbers: column 1 is A, 2 is B, ..., 26 is Z, 27 is AA, 28 is AB, and so on. Given a positive integer n, return its column title — the letter label a spreadsheet would show.\n\nYour first instinct is probably \"this is just base-26.\" Write A as 0, B as 1, ... Z as 25, and convert like you would any base. And it almost works — until you try n = 26. In standard base-26 that's \"10\", which would map to \"A@\"... but there is no @. The alphabet has twenty-six letters and no zero, so the place-value system you learned in school doesn't apply directly. Something is off by one, and it infects every digit.\n\nThe click is figuring out what to do about that missing zero. In ordinary base-10, the digit 0 means \"nothing in this place.\" Here, every position always has a letter from A to Z — there is no \"nothing.\" So the mapping isn't digit = remainder; it's digit = remainder + 1, which means you have to subtract 1 before taking each remainder. That single subtraction fixes the off-by-one at every level, and the rest is a textbook base conversion loop.",
+    examples: [
+      { in: "n = 1", out: "\"A\"" },
+      { in: "n = 28", out: "\"AB\"" },
+      { in: "n = 701", out: "\"ZY\"" }
+    ],
+    constraints: [
+      "n is a positive integer (1 or greater).",
+      "The output uses only uppercase letters A–Z; there is no zero digit.",
+      "Aim for O(log n) time — the number of digits in the title."
+    ],
+    whyItMatters: "This puzzle is about a category error: a number system that looks like base-26 but isn't, because it's missing a digit. Standard positional notation needs a zero — without it, every place value is shifted by one, and a naive conversion silently produces wrong answers. The fix (subtract 1 before each modulo) is small, but the lesson is large: not every \"counting with symbols\" system follows the base-n template, and the moment a representation has no zero you're in bijective numeration territory. Bijective base-26 shows up in spreadsheet columns, in Excel cell references, in license plate schemes, and in the way some databases encode IDs as short strings. Recognizing \"this looks like base conversion but the zero is missing\" saves you from debugging mysterious off-by-one errors that only appear at Z, ZZ, and ZZZ — the exact boundaries where the shift compounds.",
+    hint: "In normal base-10, you take n % 10 to get the last digit. Here, A is 1 (not 0), so the last \"digit\" is (n-1) % 26, mapped to a letter. After extracting it, divide by 26 — but you already subtracted 1, so use floor((n-1) / 26) to move to the next place. Loop until n reaches 0, prepending each letter.",
+    solution: {
+      lang: "javascript",
+      code: "function convertToTitle(n) {\n  let result = '';\n  while (n > 0) {\n    n--;                            // shift from 1-indexed to 0-indexed\n    result = String.fromCharCode(65 + (n % 26)) + result;\n    n = Math.floor(n / 26);\n  }\n  return result;\n}",
+      notes: "The algorithm is a standard base-conversion loop with one crucial tweak: decrement n before each modulo. In ordinary base-26, the digits run 0–25 and the digit 0 maps to the first symbol. But here the first symbol is A = 1, not A = 0 — there is no zeroth letter. Subtracting 1 before taking the remainder converts from the spreadsheet's 1-indexed alphabet to the 0-indexed offset that modulo produces: remainder 0 → A, 1 → B, ..., 25 → Z. After extracting the digit, floor(n / 26) moves to the next place — but since n was already decremented, this is effectively floor((n-1) / 26), which is correct for a system with no zero.\n\nTrace example 1: n = 1. n-- → 0, 0 % 26 = 0, char = fromCharCode(65) = 'A', n = floor(0/26) = 0. Result: \"A\".\n\nTrace example 2: n = 28. n-- → 27, 27 % 26 = 1, char = fromCharCode(66) = 'B', n = floor(27/26) = 1. Next: n-- → 0, 0 % 26 = 0, char = 'A', n = 0. Result: \"AB\". Verify: A×26 + B = 1×26 + 2 = 28. ✓\n\nTrace example 3: n = 701. n-- → 700, 700 % 26 = 24 (since 26×26 = 676, remainder 24), char = fromCharCode(89) = 'Y', n = floor(700/26) = 26. Next: n-- → 25, 25 % 26 = 25, char = fromCharCode(90) = 'Z', n = floor(25/26) = 0. Result: \"ZY\". Verify: Z×26 + Y = 26×26 + 25 = 676 + 25 = 701. ✓\n\nThe trap that catches everyone on the first try: without the n--, n = 26 would produce remainder 0, which maps to... what? There's no letter for zero. You'd either crash or silently emit a garbage character. The decrement shifts 26 into the range 0–25 where it maps cleanly to Z, and the same fix propagates correctly to every higher place. Time O(log₂₆ n) — one iteration per digit of the title; space O(log n) for the output string."
+    }
+  },
+  {
     id: "can-you-reach-the-exit",
     date: "2026-08-22",
     title: "Can You Reach the Exit?",
