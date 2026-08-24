@@ -22,6 +22,33 @@
  */
 window.CHALLENGES = [
   {
+    id: "multiply-everything-except-me",
+    date: "2026-08-24",
+    title: "Multiply Everything Except Me",
+    blurb: "For every spot in the array, multiply all the others — but you're not allowed to divide. Two passes do the impossible.",
+    difficulty: "Medium",
+    minutes: 12,
+    tags: ["prefix-sum", "arrays"],
+    prompt: "You're given an array of numbers. Return a new array of the same length where each position i holds the product of every element except nums[i]. So for [1, 2, 3, 4] you'd return [24, 12, 8, 6] — at index 0 you multiply 2 × 3 × 4 = 24, at index 1 you multiply 1 × 3 × 4 = 12, and so on.\n\nHere's the catch: you may not use division. The obvious solution — compute the total product, then divide by each element — is off the table. (And it should be: it breaks the moment a zero shows up, since you'd be dividing by zero.)\n\nThe reflex is, for each index, loop over the whole array multiplying everything except that one. That's correct but O(n²) — n separate passes, each touching n-1 elements. The click is realizing that every answer is just two pieces glued together: the product of everything to the LEFT of i, times the product of everything to the RIGHT of i. And those left and right products overlap massively from one index to the next — so you can compute them incrementally, not from scratch.",
+    examples: [
+      { in: "nums = [1, 2, 3, 4]", out: "[24, 12, 8, 6]" },
+      { in: "nums = [-1, 1, 0, -3, 3]", out: "[0, 0, 9, 0, 0]" },
+      { in: "nums = [2, 3]", out: "[3, 2]" }
+    ],
+    constraints: [
+      "You may NOT use division anywhere in your solution.",
+      "The array has at least two elements; values are integers (positive, negative, or zero).",
+      "Aim for O(n) time and O(1) extra space (not counting the output array)."
+    ],
+    whyItMatters: "This puzzle teaches the single most reusable idea in array problem-solving: when a computation at each index shares structure with its neighbors, don't recompute — accumulate. The left-product at index i is just the left-product at index i-1 times nums[i-1], so a single forward pass builds every left-product. The same trick run backward builds every right-product. The deeper lesson is recognizing prefix and suffix products as building blocks — the same instinct that turns 'range sum query' into a prefix-sum array, that makes rolling hashes work, and that underlies every cumulative-aggregation pattern from running statistics to dynamic programming tables. When you catch yourself doing 'for each element, scan the whole array,' ask: what does this element's answer share with the one before it? If the answer is 'almost everything,' there's a running product waiting to be extracted.",
+    hint: "Split the problem in two. The answer at index i is (product of everything left of i) × (product of everything right of i). First, walk forward and fill the result so that result[i] = product of nums[0..i-1]. Then walk backward with a running 'right product' variable, multiplying it into each result[i] — the right product at index i is the product of nums[i+1..n-1]. Two passes, one output array, zero division.",
+    solution: {
+      lang: "javascript",
+      code: "function productExceptSelf(nums) {\n  const n = nums.length;\n  const result = new Array(n);\n\n  // Forward pass: result[i] = product of everything to the LEFT of i.\n  result[0] = 1;\n  for (let i = 1; i < n; i++) {\n    result[i] = result[i - 1] * nums[i - 1];\n  }\n\n  // Backward pass: fold in the product of everything to the RIGHT.\n  let right = 1;\n  for (let i = n - 1; i >= 0; i--) {\n    result[i] *= right;\n    right *= nums[i];\n  }\n  return result;\n}",
+      notes: "The forward pass stores the running left-product: result[0] = 1 (nothing to the left), result[1] = nums[0], result[2] = nums[0] × nums[1], and so on. The backward pass walks from the right end, carrying a 'right' variable that is the product of everything seen so far to the right of the current index. At each index, multiplying the stored left-product by the running right-product gives the final answer — then 'right' is extended by nums[i] before moving left.\n\nTrace example 1: [1, 2, 3, 4]. Forward pass: result = [1, 1, 2, 6] (result[1] = 1×1 = 1, result[2] = 1×2 = 2, result[3] = 2×3 = 6). Backward pass: i=3: result[3] = 6×1 = 6, right = 1×4 = 4. i=2: result[2] = 2×4 = 8, right = 4×3 = 12. i=1: result[1] = 1×12 = 12, right = 12×2 = 24. i=0: result[0] = 1×24 = 24. Final: [24, 12, 8, 6]. ✓ Verify index 0: 2×3×4 = 24. ✓ Index 2: 1×2×4 = 8. ✓\n\nTrace example 2: [-1, 1, 0, -3, 3]. Forward pass: result = [1, -1, -1, 0, 0] (the zero at index 2 poisons everything downstream). Backward pass: i=4: result[4] = 0×1 = 0, right = 1×3 = 3. i=3: result[3] = 0×3 = 0, right = 3×(-3) = -9. i=2: result[2] = (-1)×(-9) = 9, right = (-9)×0 = 0. i=1: result[1] = (-1)×0 = 0, right = 0×1 = 0. i=0: result[0] = 1×0 = 0. Final: [0, 0, 9, 0, 0]. ✓ Only index 2 — the zero itself — has a nonzero product, because neither its left-product (-1×1 = -1) nor its right-product (-3×3 = -9) involves zero. Every other index multiplies by the zero and collapses to 0. This is exactly why the division approach fails: you'd try to divide the total product (which is 0) by zero. ✓\n\nTrace example 3: [2, 3]. Forward: result = [1, 2]. Backward: i=1: result[1] = 2×1 = 2, right = 1×3 = 3. i=0: result[0] = 1×3 = 3. Final: [3, 2]. ✓\n\nTime O(n) — two linear passes. Space O(1) extra — the output array is the only allocation, and it's the thing you were asked to return, not auxiliary storage. The key insight is that prefix and suffix products are cumulative: each is a one-step extension of the previous, so you never recompute from scratch. The same 'accumulate, don't recompute' instinct is what makes prefix sums, rolling hashes, and a host of DP optimizations work."
+    }
+  },
+  {
     id: "there-is-no-column-zero",
     date: "2026-08-23",
     title: "There Is No Column Zero",
