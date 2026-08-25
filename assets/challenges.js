@@ -22,6 +22,33 @@
  */
 window.CHALLENGES = [
   {
+    id: "are-we-going-in-circles",
+    date: "2026-08-25",
+    title: "Are We Going in Circles?",
+    blurb: "A linked list might loop back on itself forever. Two runners — one fast, one slow — will tell you in one pass, no extra memory.",
+    difficulty: "Easy",
+    minutes: 8,
+    tags: ["linked-list", "two-pointers"],
+    prompt: "You're given the head of a singly linked list. Each node points to its next node, and the last node's next pointer is normally null — but maybe not. A \"cycle\" happens when some node's next pointer points back to an earlier node in the list instead, so a portion of the list loops forever. Given the head, return whether the list contains a cycle.\n\nThe reflex is a paper trail: walk the list and remember every node you've visited in a Set. If you reach null, no cycle; if you reach a node you've already seen, cycle found. That's correct, and it's O(n) time — but it's also O(n) space, because the Set holds a copy of every node you visited.\n\nThe click is to stop asking \"have I been here before?\" and start asking \"can anything moving faster than me catch up from behind?\" Send two runners around the list: a tortoise moving one node per step, and a hare moving two. On a straight list, the hare simply reaches the end. But on a list with a cycle, both runners are trapped inside the loop — and the hare, gaining one node per step on the tortoise, must eventually lap it. Their meeting is the proof that a cycle exists.",
+    examples: [
+      { in: "head = [3, 2, 0, -4], pos = 1", out: "true" },
+      { in: "head = [1, 2], pos = 0", out: "true" },
+      { in: "head = [1], pos = -1", out: "false" }
+    ],
+    constraints: [
+      "pos is the index (0-based) of the node the tail connects back to; -1 means no cycle. It's given only so you can picture the list — your code receives just the head node.",
+      "The list has between 0 and 10^4 nodes; node values can be anything.",
+      "Aim for O(n) time and O(1) extra space — no Set, no visited markers."
+    ],
+    whyItMatters: "This puzzle is the friendliest introduction to Floyd's cycle-detection algorithm, and the idea underneath it reaches far beyond linked lists. \"Send a probe at two different speeds and see if they collide\" is the same principle that finds a cycle in a function's iteration graph (Pollard's rho factoring), detects infinite loops in sequence generation, and underlies the algorithm that finds a duplicate number in an array without sorting or extra space. The deeper lesson is a modeling move: when you need to detect a repeat in a sequence you can't store, don't store the sequence — arrange for two traversals of it at different speeds and let the repeat reveal itself through their relative motion. A finite cycle and two different step sizes guarantee a meeting; that's a proof hiding inside an algorithm.",
+    hint: "Initialize slow and fast to head. Each iteration: slow moves one step (slow = slow.next), fast moves two (fast = fast.next.next). If fast or fast.next ever becomes null, the list ends — no cycle. If slow === fast after a step, the hare has lapped the tortoise — cycle confirmed. Why must they meet? Inside the cycle, the gap between them shrinks by one each step, so it can't help but hit zero.",
+    solution: {
+      lang: "javascript",
+      code: "function hasCycle(head) {\n  let slow = head, fast = head;\n  while (fast && fast.next) {\n    slow = slow.next;\n    fast = fast.next.next;\n    if (slow === fast) return true;\n  }\n  return false;\n}",
+      notes: "The while condition is the straight-list exit: if fast is null (hare ran off the end) or fast.next is null (hare has one node left, so its two-step jump falls off), there's no cycle. Inside the loop, slow advances one and fast advances two; the identity check slow === fast (same object, not same value) catches the lap.\n\nTrace example 1: [3,2,0,-4], pos = 1. The list is 3→2→0→-4→(back to 2)→0→-4→2→... Both runners start at node 3.\n• Iteration 1: slow = 2, fast = 0. (slow: 3→2; fast: 3→2→0)\n• Iteration 2: slow = 0, fast = 2. (slow: 2→0; fast: 0→-4→2, cycling back)\n• Iteration 3: slow = -4, fast = -4. (slow: 0→-4; fast: 2→0→-4) slow === fast → true. ✓\n\nTrace example 2: [1,2], pos = 0. The list is 1→2→(back to 1)→2→...\n• Iteration 1: slow = 2, fast = 1. (slow: 1→2; fast: 1→2→1, cycling back)\n• Iteration 2: slow = 1, fast = 1. (slow: 2→1; fast: 1→2→1) slow === fast → true. ✓\n\nTrace example 3: [1], pos = -1. The list is 1→null. fast = head = 1 (truthy), fast.next = null (falsy), so the while condition fails immediately → return false. ✓ A single node with no cycle is the shortest no-cycle list.\n\nWhy they must meet inside a cycle: once both runners are inside the loop, call the gap between them g (the number of steps fast is ahead of slow, measured cyclically). Each step, slow advances 1 and fast advances 2, so the gap shrinks by 1. Since the cycle is finite, g must hit 0 — and a gap of 0 means they're on the same node. The hare gains one node per step and can never jump over the tortoise without landing on it, because it's closing in one node at a time on a finite ring.\n\nTime O(n) — in the worst case the hare travels at most 2n nodes before the meeting. Space O(1) — two pointers, no Set."
+    }
+  },
+  {
     id: "multiply-everything-except-me",
     date: "2026-08-24",
     title: "Multiply Everything Except Me",
