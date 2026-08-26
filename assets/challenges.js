@@ -22,6 +22,34 @@
  */
 window.CHALLENGES = [
   {
+    id: "peak-without-a-climb",
+    date: "2026-08-26",
+    title: "Peak Without a Climb",
+    blurb: "An unsorted array hides a peak somewhere. You don't need to find the biggest one — any one will do, and that's what makes a binary search possible.",
+    difficulty: "Medium",
+    minutes: 10,
+    tags: ["binary-search", "arrays"],
+    prompt: "You're given an array of numbers where no two neighbors are equal — every adjacent pair is strictly greater or strictly less. A \"peak\" is an index i whose value is greater than both of its neighbors (where a neighbor exists). The first and last elements only need to beat their single neighbor, so the ends can be peaks too. Return the index of ANY peak.\n\nAt first glance this looks hopeless for anything faster than a linear scan: the array isn't sorted, so what could binary search even mean here? The reflex is to walk the whole thing and report the first index that's bigger than both neighbors — O(n), fine for small inputs, but it ignores the one piece of information you actually have: every step is a slope, either up or down.\n\nThe click is that you don't need the highest peak, just a peak, and a peak is a local property. Look at the middle. If the middle is climbing (nums[mid] < nums[mid+1]), then the array is going up to the right — and going up must eventually come down (the last element is a peak if nothing else is), so a peak exists somewhere to the right. Throw away the left half. If instead the middle is falling (nums[mid] > nums[mid+1]), a peak exists to the left, including possibly mid itself. Throw away the right half. Each step halves the search space, never missing a peak, because you always walk uphill — and uphill always ends at a summit.",
+    examples: [
+      { in: "nums = [1, 2, 3, 1]", out: "2" },
+      { in: "nums = [1, 2, 1, 3, 5, 6, 4]", out: "5" },
+      { in: "nums = [1]", out: "0" }
+    ],
+    constraints: [
+      "nums[i] !== nums[i+1] for every adjacent pair — no plateaus, so every comparison is strictly up or down.",
+      "The array has at least one element; a single element is trivially a peak.",
+      "Any valid peak index is an acceptable answer; the puzzle asks for existence, not a specific one.",
+      "Aim for O(log n) time — you do not need to look at every element."
+    ],
+    whyItMatters: "This puzzle is the cleanest demonstration of a habit that pays off forever: when the question is \"does one exist?\" rather than \"find the best one,\" the search can be dramatically shorter. The array looks unsorted, but it's locally directional — every step is a slope — and a slope always leads to a local maximum before the boundary forces it down. That's enough structure for binary search, because \"go toward the higher neighbor\" can never walk you past a peak without landing on one. The transferable lesson is about exploiting local guarantees: you don't need the data globally ordered, you need a property that tells you which half still contains an answer. The same instinct powers finding a bitonic sequence's tip, searching a rotated sorted array, and ternary search on a unimodal function — all cases where \"which way is up?\" alone shrinks the problem. When a problem feels like it needs a full scan, ask: do I actually need every element, or just a direction that's guaranteed to lead somewhere good?",
+    hint: "Compare nums[mid] with nums[mid+1]. If nums[mid] < nums[mid+1], you're on an upward slope, so a peak lies to the RIGHT — set lo = mid + 1. Otherwise you're on a downward slope, so a peak lies at mid or to its LEFT — set hi = mid. Loop while lo < hi; when they meet, lo is a peak index. You never compare to a sorted whole, only to the single neighbor that tells you which way is uphill.",
+    solution: {
+      lang: "javascript",
+      code: "function findPeakElement(nums) {\n  let lo = 0, hi = nums.length - 1;\n  while (lo < hi) {\n    const mid = (lo + hi) >> 1;\n    if (nums[mid] < nums[mid + 1]) {\n      lo = mid + 1;      // uphill — peak is to the right\n    } else {\n      hi = mid;          // downhill — peak is at mid or to the left\n    }\n  }\n  return lo;\n}",
+      notes: "One comparison per iteration, and the interval halves each time — classic binary search, but on an array that isn't sorted. The key that makes it legal: adjacent values are never equal, so nums[mid] vs nums[mid+1] is always a strict decision, and whichever way is uphill is guaranteed to reach a peak before the boundary stops it. Going uphill can't trap you in a valley, because the only thing that ends an uphill run is a peak (a drop) or the array's edge (which is itself a peak).\n\nTrace example 1: [1,2,3,1], length 4.\n• lo=0, hi=3. mid=1. nums[1]=2 < nums[2]=3 → uphill. lo=2.\n• lo=2, hi=3. mid=2. nums[2]=3 > nums[3]=1 → downhill. hi=2.\n• lo=2, hi=2 → return 2. Value 3: greater than left (2) and right (1). ✓ A genuine peak.\n\nTrace example 2: [1,2,1,3,5,6,4], length 7.\n• lo=0, hi=6. mid=3. nums[3]=3 < nums[4]=5 → uphill. lo=4.\n• lo=4, hi=6. mid=5. nums[5]=6 > nums[6]=4 → downhill. hi=5.\n• lo=4, hi=5. mid=4. nums[4]=5 < nums[5]=6 → uphill. lo=5.\n• lo=5, hi=5 → return 5. Value 6: greater than left (5) and right (4). ✓ Another valid peak here was index 1 (value 2 > 1 on both sides), but the search found index 5 first — and the puzzle only needs any peak, so both are correct answers.\n\nTrace example 3: [1], length 1.\n• lo=0, hi=0. The while condition (lo < hi) is false immediately → return 0. A lone element has no neighbors to beat, so by definition it's a peak. ✓\n\nWhy the invariant holds: when nums[mid] < nums[mid+1], the slope points right, and the right region [mid+1, hi] must contain a peak — either a later interior peak, or the last element itself (which only needs to beat its left neighbor, and the uphill run guarantees that). When nums[mid] > nums[mid+1], the region [lo, mid] must contain a peak — mid could be one (it's higher than its right neighbor), and if not, the leftward region was reached via an uphill slope that ends in a peak. So the surviving half always contains at least one peak, and the interval shrinks strictly (mid+1 > lo when going right; mid < hi when going left, since mid floors below hi). The loop converges to a single index that, by construction, is a peak.\n\nTime O(log n) — each iteration halves the range. Space O(1) — three integers, no recursion, no extra array. The whole trick is trusting that \"head uphill\" is a complete strategy when you only need any summit, not the highest one."
+    }
+  },
+  {
     id: "are-we-going-in-circles",
     date: "2026-08-25",
     title: "Are We Going in Circles?",
