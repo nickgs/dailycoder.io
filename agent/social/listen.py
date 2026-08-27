@@ -67,6 +67,14 @@ PER_SOURCE_CAP = 12
 # is worse than not replying.
 MAX_AGE_HOURS = 48
 
+# Pending items the digest agent has repeatedly declined to use are dropped
+# after this long. Without it the queue only ever grows: every rejected item is
+# re-read by the agent every morning, and prompt tokens are ~88% of this job's
+# cost, so a growing queue of things already judged uninteresting is a bill that
+# compounds for no benefit. Safe to delete because it is well past
+# MAX_AGE_HOURS, so the collector will not pick the same item up again.
+PENDING_TTL_HOURS = 96
+
 TAG_RE = re.compile(r"<[^>]+>")
 
 
@@ -389,12 +397,22 @@ SOURCES = {
 # --------------------------------------------------------------------------
 
 
+def prune_stale(conn):
+    """Drop pending items the agent has had several chances to use and passed on."""
+    cutoff = (now_utc() - timedelta(hours=PENDING_TTL_HOURS)).isoformat()
+    cur = conn.execute(
+        "DELETE FROM items WHERE delivered_at IS NULL AND found_at < ?", (cutoff,)
+    )
+    return cur.rowcount
+
+
 def cmd_collect(args):
     terms = load_terms()
     conn = db_connect()
     errors = []
     added = 0
     per_source = {}
+    pruned = prune_stale(conn)
 
     for name, fn in SOURCES.items():
         try:
@@ -427,7 +445,10 @@ def cmd_collect(args):
         pending = conn.execute(
             "SELECT COUNT(*) FROM items WHERE delivered_at IS NULL"
         ).fetchone()[0]
-        print(f"added {added} ({per_source}), pending {pending}, errors {len(errors)}")
+        print(
+            f"added {added} ({per_source}), pruned {pruned}, "
+            f"pending {pending}, errors {len(errors)}"
+        )
         for err in errors:
             print(f"  - {err}")
 
