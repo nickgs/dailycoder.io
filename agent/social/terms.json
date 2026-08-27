@@ -1,0 +1,87 @@
+{
+  "_comment": "Scoring vocabulary for the DailyCoder listener. Tune these freely — listen.py reads this file at runtime, no code change needed. A thread is enqueued when its score >= min_score. Weights are additive; a term counts once no matter how often it appears.",
+
+  "min_score": 3,
+
+  "tiers": {
+    "3": {
+      "_why": "DailyCoder's actual thesis. Someone worrying out loud that AI is eroding their craft IS the target reader — this is the highest-value thing to reply to, not generic programming chat.",
+      "terms": [
+        "vibe coding",
+        "vibe coded",
+        "skill atrophy",
+        "atrophying",
+        "forgetting how to code",
+        "forgot how to code",
+        "losing my coding skills",
+        "lost the ability to code",
+        "deskilling",
+        "cognitive offload",
+        "brain rot",
+        "can't code without ai",
+        "cant code without ai",
+        "relying too much on ai",
+        "ai is making me worse",
+        "juniors can't",
+        "juniors cant"
+      ]
+    },
+    "2": {
+      "_why": "Direct category adjacency — people already in the market for a small daily practice habit.",
+      "terms": [
+        "coding puzzle",
+        "programming puzzle",
+        "code kata",
+        "coding kata",
+        "advent of code",
+        "project euler",
+        "codewars",
+        "exercism",
+        "daily challenge",
+        "daily coding",
+        "recreational programming",
+        "programming exercise",
+        "practice problems",
+        "brain teaser",
+        "crossword"
+      ]
+    },
+    "1": {
+      "_why": "Weak signals. On their own these never clear min_score — they only push a tier-2 or tier-3 hit up the ranking.",
+      "terms": [
+        "leetcode",
+        "interview prep",
+        "algorithm practice",
+        "learn to code",
+        "learning to code",
+        "side project",
+        "newsletter",
+        "hand-written",
+        "by hand",
+        "pen and paper",
+        "craft",
+        "fundamentals"
+      ]
+    }
+  },
+
+  "_negative_why": "Hard excludes. These kill an item outright regardless of score — recruiting spam, course sales, and crypto/AI-tool promos are the three things that reliably pollute these keyword sets.",
+  "negative": [
+    "hiring",
+    "we're hiring",
+    "job board",
+    "apply now",
+    "salary",
+    "enroll",
+    "bootcamp discount",
+    "coupon",
+    "promo code",
+    "buy now",
+    "airdrop",
+    "crypto",
+    "nft",
+    "token sale",
+    "onlyfans",
+    "casino"
+  ]
+}

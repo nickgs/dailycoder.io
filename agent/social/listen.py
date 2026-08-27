@@ -1,0 +1,519 @@
+#!/usr/bin/env python3
+"""Collect DailyCoder engagement opportunities from open community APIs.
+
+This is the cheap half of the social loop. It runs with --no-agent, so it costs
+nothing per run: no LLM is involved, it just fetches, scores, dedupes and
+queues. The expensive half (ranking and drafting) happens once a day in
+`agent/social-digest.md`, reading this queue via --report.
+
+That split is deliberate and mirrors the puzzle/send split already in this repo:
+a cheap deterministic collector cannot produce a bad post, and a bad agent day
+produces silence rather than noise.
+
+Sources are limited to APIs that work with NO credentials, verified from
+libc-agents on 2026-08-27:
+
+    HN (Algolia)          200   search_by_date
+    Lobsters              200   /t/<tag>.json
+    Lemmy programming.dev 200   /api/v3/post/list
+    Mastodon tag timeline 200   /api/v1/timelines/tag/<tag>
+
+Deliberately NOT here, because both 403 without credentials:
+
+    Reddit   — needs a registered OAuth "script" app (client id + secret)
+    Bluesky  — app.bsky.feed.searchPosts needs a session; needs an app password
+
+Those are the two highest-value audiences for DailyCoder and they are the first
+thing to add once Nick supplies credentials. Mastodon /api/v2/search also needs
+auth (it returns empty arrays unauthenticated, which looks like "no results"
+rather than "denied") — hence tag timelines, which genuinely are public.
+
+Modes:
+    (default)          collect; print NOTHING on success. Empty stdout = silent,
+                       so a healthy run never emails anyone.
+    --report [N]       print the pending queue as JSON for the digest agent
+    --mark-delivered   read ids on stdin (one per line) and mark them delivered
+    --stats            human-readable queue state
+"""
+
+import argparse
+import html
+import json
+import os
+import re
+import sqlite3
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from datetime import datetime, timedelta, timezone
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+TERMS_PATH = os.path.join(HERE, "terms.json")
+
+STATE_DIR = os.environ.get(
+    "DC_SOCIAL_STATE", os.path.join(os.path.expanduser("~"), ".hermes", "state")
+)
+DB_PATH = os.path.join(STATE_DIR, "dailycoder_social.db")
+
+UA = "dailycoder-listener/0.1 (+https://dailycoder.io; nick@segosolutions.com)"
+
+# Keep a lid on how much any single source can contribute per run. Without this
+# one busy Mastodon tag can crowd out everything else in a day's digest.
+PER_SOURCE_CAP = 12
+
+# Items older than this are never enqueued — replying to a four-day-old thread
+# is worse than not replying.
+MAX_AGE_HOURS = 48
+
+TAG_RE = re.compile(r"<[^>]+>")
+
+
+# --------------------------------------------------------------------------
+# helpers
+# --------------------------------------------------------------------------
+
+
+def strip_html(raw):
+    if not raw:
+        return ""
+    return html.unescape(TAG_RE.sub(" ", raw)).strip()
+
+
+def get_json(url, timeout=20):
+    """GET and parse JSON. Returns (data, None) or (None, reason)."""
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            if resp.status != 200:
+                return None, f"HTTP {resp.status}"
+            return json.loads(resp.read().decode("utf-8", "replace")), None
+    except urllib.error.HTTPError as exc:
+        return None, f"HTTP {exc.code}"
+    except (urllib.error.URLError, OSError, json.JSONDecodeError) as exc:
+        return None, f"{type(exc).__name__}: {exc}"
+
+
+def now_utc():
+    return datetime.now(timezone.utc)
+
+
+def parse_ts(value):
+    """Best-effort timestamp parse across four different API conventions."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return datetime.fromtimestamp(value, timezone.utc)
+    text = str(value).strip().replace("Z", "+00:00")
+    try:
+        dt = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+# --------------------------------------------------------------------------
+# scoring
+# --------------------------------------------------------------------------
+
+
+def load_terms():
+    with open(TERMS_PATH, "r", encoding="utf-8") as fh:
+        cfg = json.load(fh)
+    weighted = []
+    for weight, block in cfg.get("tiers", {}).items():
+        for term in block.get("terms", []):
+            weighted.append((int(weight), term.lower()))
+    # Longest first so "coding puzzle" is considered before "puzzle"-ish subsets.
+    weighted.sort(key=lambda pair: -len(pair[1]))
+    return {
+        "min_score": int(cfg.get("min_score", 3)),
+        "weighted": weighted,
+        "negative": [t.lower() for t in cfg.get("negative", [])],
+    }
+
+
+def score_text(text, terms):
+    """Return (score, matched_terms) or (0, []) if vetoed."""
+    low = text.lower()
+    for bad in terms["negative"]:
+        if bad in low:
+            return 0, []
+    score = 0
+    matched = []
+    for weight, term in terms["weighted"]:
+        if term in low:
+            score += weight
+            matched.append(term)
+    return score, matched
+
+
+# --------------------------------------------------------------------------
+# storage
+# --------------------------------------------------------------------------
+
+
+def db_connect():
+    os.makedirs(STATE_DIR, exist_ok=True)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.row_factory = sqlite3.Row
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS items (
+            id            TEXT PRIMARY KEY,   -- source:native_id, the dedupe key
+            source        TEXT NOT NULL,
+            title         TEXT NOT NULL,
+            url           TEXT NOT NULL,
+            author        TEXT,
+            excerpt       TEXT,
+            score         INTEGER NOT NULL,
+            matched       TEXT,
+            engagement    INTEGER DEFAULT 0,  -- comments/replies, a crude "is it live" signal
+            posted_at     TEXT,
+            found_at      TEXT NOT NULL,
+            delivered_at  TEXT                -- NULL = still pending
+        )
+        """
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_pending ON items(delivered_at, score)")
+    conn.commit()
+    return conn
+
+
+def enqueue(conn, item):
+    """Insert if new. Returns True when it was actually new."""
+    try:
+        conn.execute(
+            """INSERT INTO items
+               (id, source, title, url, author, excerpt, score, matched,
+                engagement, posted_at, found_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                item["id"],
+                item["source"],
+                item["title"][:500],
+                item["url"],
+                item.get("author", ""),
+                (item.get("excerpt") or "")[:900],
+                item["score"],
+                ",".join(item.get("matched", [])),
+                item.get("engagement", 0),
+                item.get("posted_at"),
+                now_utc().isoformat(),
+            ),
+        )
+        return True
+    except sqlite3.IntegrityError:
+        return False
+
+
+# --------------------------------------------------------------------------
+# sources
+# --------------------------------------------------------------------------
+
+
+def fresh_enough(posted_at):
+    if posted_at is None:
+        return True  # undated sources are rare; let scoring decide
+    return posted_at >= now_utc() - timedelta(hours=MAX_AGE_HOURS)
+
+
+def src_hackernews(terms, errors):
+    """HN via Algolia. Query per tier-3/tier-2 phrase, newest first."""
+    out = []
+    queries = [t for w, t in terms["weighted"] if w >= 2][:14]
+    seen_ids = set()
+    for query in queries:
+        url = (
+            "https://hn.algolia.com/api/v1/search_by_date?"
+            + urllib.parse.urlencode(
+                {
+                    "query": query,
+                    "tags": "(story,comment)",
+                    "hitsPerPage": 12,
+                    "numericFilters": f"created_at_i>{int(time.time() - MAX_AGE_HOURS * 3600)}",
+                }
+            )
+        )
+        data, err = get_json(url)
+        if err:
+            errors.append(f"hackernews[{query}]: {err}")
+            continue
+        for hit in data.get("hits", []):
+            oid = str(hit.get("objectID"))
+            if oid in seen_ids:
+                continue
+            seen_ids.add(oid)
+            title = hit.get("title") or hit.get("story_title") or ""
+            body = strip_html(hit.get("story_text") or hit.get("comment_text") or "")
+            score, matched = score_text(f"{title} {body}", terms)
+            if score < terms["min_score"]:
+                continue
+            out.append(
+                {
+                    "id": f"hn:{oid}",
+                    "source": "hackernews",
+                    "title": title or body[:120] or "(HN comment)",
+                    "url": f"https://news.ycombinator.com/item?id={oid}",
+                    "author": hit.get("author", ""),
+                    "excerpt": body[:600],
+                    "score": score,
+                    "matched": matched,
+                    "engagement": hit.get("num_comments") or 0,
+                    "posted_at": (parse_ts(hit.get("created_at")) or now_utc()).isoformat(),
+                }
+            )
+    return out
+
+
+def src_lobsters(terms, errors):
+    out = []
+    for tag in ("programming", "practices", "compsci"):
+        data, err = get_json(f"https://lobste.rs/t/{tag}.json")
+        if err:
+            errors.append(f"lobsters[{tag}]: {err}")
+            continue
+        for post in data if isinstance(data, list) else []:
+            posted = parse_ts(post.get("created_at"))
+            if not fresh_enough(posted):
+                continue
+            body = post.get("description_plain") or strip_html(post.get("description"))
+            score, matched = score_text(f"{post.get('title','')} {body}", terms)
+            if score < terms["min_score"]:
+                continue
+            out.append(
+                {
+                    "id": f"lobsters:{post.get('short_id')}",
+                    "source": "lobsters",
+                    "title": post.get("title", ""),
+                    "url": post.get("comments_url") or post.get("short_id_url") or "",
+                    "author": (post.get("submitter_user") or {}).get("username", "")
+                    if isinstance(post.get("submitter_user"), dict)
+                    else str(post.get("submitter_user") or ""),
+                    "excerpt": (body or "")[:600],
+                    "score": score,
+                    "matched": matched,
+                    "engagement": post.get("comment_count") or 0,
+                    "posted_at": (posted or now_utc()).isoformat(),
+                }
+            )
+    return out
+
+
+def src_lemmy(terms, errors):
+    out = []
+    base = "https://programming.dev/api/v3/post/list"
+    for sort in ("New", "Active"):
+        data, err = get_json(f"{base}?limit=50&sort={sort}&type_=Local")
+        if err:
+            errors.append(f"lemmy[{sort}]: {err}")
+            continue
+        for entry in data.get("posts", []):
+            post = entry.get("post", {})
+            posted = parse_ts(post.get("published"))
+            if not fresh_enough(posted):
+                continue
+            body = post.get("body") or ""
+            score, matched = score_text(f"{post.get('name','')} {body}", terms)
+            if score < terms["min_score"]:
+                continue
+            out.append(
+                {
+                    "id": f"lemmy:{post.get('id')}",
+                    "source": "lemmy",
+                    "title": post.get("name", ""),
+                    "url": post.get("ap_id") or post.get("url") or "",
+                    "author": "",
+                    "excerpt": strip_html(body)[:600],
+                    "score": score,
+                    "matched": matched,
+                    "engagement": (entry.get("counts") or {}).get("comments", 0),
+                    "posted_at": (posted or now_utc()).isoformat(),
+                }
+            )
+    return out
+
+
+def src_mastodon(terms, errors):
+    """Public tag timelines. /api/v2/search needs auth; these genuinely don't."""
+    out = []
+    instances = ("fosstodon.org", "mastodon.social", "hachyderm.io")
+    tags = ("programming", "coding", "softwaredevelopment", "webdev")
+    for instance in instances:
+        for tag in tags:
+            data, err = get_json(
+                f"https://{instance}/api/v1/timelines/tag/{tag}?limit=40"
+            )
+            if err:
+                errors.append(f"mastodon[{instance}/{tag}]: {err}")
+                continue
+            for status in data if isinstance(data, list) else []:
+                if status.get("reblog"):
+                    continue  # boosts aren't conversations to join
+                posted = parse_ts(status.get("created_at"))
+                if not fresh_enough(posted):
+                    continue
+                body = strip_html(status.get("content"))
+                score, matched = score_text(body, terms)
+                if score < terms["min_score"]:
+                    continue
+                out.append(
+                    {
+                        "id": f"mastodon:{status.get('uri') or status.get('id')}",
+                        "source": "mastodon",
+                        "title": body[:120],
+                        "url": status.get("url") or status.get("uri") or "",
+                        "author": (status.get("account") or {}).get("acct", ""),
+                        "excerpt": body[:600],
+                        "score": score,
+                        "matched": matched,
+                        "engagement": (status.get("replies_count") or 0)
+                        + (status.get("favourites_count") or 0),
+                        "posted_at": (posted or now_utc()).isoformat(),
+                    }
+                )
+    return out
+
+
+SOURCES = {
+    "hackernews": src_hackernews,
+    "lobsters": src_lobsters,
+    "lemmy": src_lemmy,
+    "mastodon": src_mastodon,
+}
+
+
+# --------------------------------------------------------------------------
+# commands
+# --------------------------------------------------------------------------
+
+
+def cmd_collect(args):
+    terms = load_terms()
+    conn = db_connect()
+    errors = []
+    added = 0
+    per_source = {}
+
+    for name, fn in SOURCES.items():
+        try:
+            found = fn(terms, errors)
+        except Exception as exc:  # a broken source must not kill the whole run
+            errors.append(f"{name}: unhandled {type(exc).__name__}: {exc}")
+            continue
+        found.sort(key=lambda i: (-i["score"], -i.get("engagement", 0)))
+        kept = 0
+        for item in found[:PER_SOURCE_CAP]:
+            if not item.get("url"):
+                continue
+            if enqueue(conn, item):
+                added += 1
+                kept += 1
+        per_source[name] = kept
+
+    conn.commit()
+
+    # Every source failing at once means the network or this script is broken,
+    # not that the internet went quiet. That is worth an email; a single flaky
+    # source is not.
+    if len(errors) >= len(SOURCES) and added == 0:
+        print("DailyCoder social listener: every source failed.")
+        for err in errors:
+            print(f"  - {err}")
+        return 1
+
+    if args.verbose:
+        pending = conn.execute(
+            "SELECT COUNT(*) FROM items WHERE delivered_at IS NULL"
+        ).fetchone()[0]
+        print(f"added {added} ({per_source}), pending {pending}, errors {len(errors)}")
+        for err in errors:
+            print(f"  - {err}")
+
+    # Silence is the healthy state.
+    return 0
+
+
+def cmd_report(args):
+    conn = db_connect()
+    rows = conn.execute(
+        """SELECT * FROM items
+           WHERE delivered_at IS NULL
+           ORDER BY score DESC, engagement DESC, found_at DESC
+           LIMIT ?""",
+        (args.limit,),
+    ).fetchall()
+    payload = [
+        {
+            "id": r["id"],
+            "source": r["source"],
+            "title": r["title"],
+            "url": r["url"],
+            "author": r["author"],
+            "excerpt": r["excerpt"],
+            "score": r["score"],
+            "matched": (r["matched"] or "").split(",") if r["matched"] else [],
+            "engagement": r["engagement"],
+            "posted_at": r["posted_at"],
+        }
+        for r in rows
+    ]
+    print(json.dumps({"pending": len(payload), "items": payload}, indent=2))
+    return 0
+
+
+def cmd_mark_delivered(args):
+    ids = [line.strip() for line in sys.stdin if line.strip()]
+    if not ids:
+        print("no ids on stdin", file=sys.stderr)
+        return 1
+    conn = db_connect()
+    stamp = now_utc().isoformat()
+    conn.executemany(
+        "UPDATE items SET delivered_at = ? WHERE id = ? AND delivered_at IS NULL",
+        [(stamp, i) for i in ids],
+    )
+    conn.commit()
+    print(f"marked {conn.total_changes} of {len(ids)} delivered")
+    return 0
+
+
+def cmd_stats(args):
+    conn = db_connect()
+    total = conn.execute("SELECT COUNT(*) FROM items").fetchone()[0]
+    pending = conn.execute(
+        "SELECT COUNT(*) FROM items WHERE delivered_at IS NULL"
+    ).fetchone()[0]
+    print(f"db      {DB_PATH}")
+    print(f"total   {total}")
+    print(f"pending {pending}")
+    print("\nby source (pending):")
+    for row in conn.execute(
+        """SELECT source, COUNT(*) n, MAX(score) top FROM items
+           WHERE delivered_at IS NULL GROUP BY source ORDER BY n DESC"""
+    ):
+        print(f"  {row['source']:<12} {row['n']:>4}  top score {row['top']}")
+    return 0
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--report", action="store_true", help="emit pending queue as JSON")
+    parser.add_argument("--mark-delivered", action="store_true", help="ids on stdin")
+    parser.add_argument("--stats", action="store_true")
+    parser.add_argument("--limit", type=int, default=40)
+    parser.add_argument("--verbose", "-v", action="store_true")
+    args = parser.parse_args()
+
+    if args.report:
+        return cmd_report(args)
+    if args.mark_delivered:
+        return cmd_mark_delivered(args)
+    if args.stats:
+        return cmd_stats(args)
+    return cmd_collect(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
