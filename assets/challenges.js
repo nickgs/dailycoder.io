@@ -22,6 +22,33 @@
  */
 window.CHALLENGES = [
   {
+    id: "the-disguise-kit",
+    date: "2026-08-27",
+    title: "The Disguise Kit",
+    blurb: "Two strings can transform into each other if every letter swaps one-for-one — but the swap has to work both ways, or the disguise has a seam.",
+    difficulty: "Easy",
+    minutes: 8,
+    tags: ["hashing", "strings"],
+    prompt: "Two strings s and t are called isomorphic if the letters of s can be replaced (consistently, position by position) to get t. Each letter of s maps to exactly one letter of t, and no two letters of s may map to the same letter of t — the pairing is a one-to-one relabeling. Equal-length lowercase strings only.\n\nSo \"egg\" and \"add\" are isomorphic: e→a, g→d, and the second g also→d. But \"foo\" and \"bar\" are not: o would have to map to both a and r. The subtler failure is \"badc\" vs \"baba\": the forward map looks fine (b→b, a→a, d→b, c→a), but two different letters of s (b and d) are both trying to wear the same disguise 'b' in t — that's a collision the forward map alone never notices.\n\nThe reflex is a single dictionary: \"for each s-letter, what t-letter did I assign it?\" and bail on conflict. That catches \"foo\"/\"bar\" but sails right past \"badc\"/\"baba\". The click is that a substitution is a bijection, not just a function — so you need the map running both ways: s[i]→t[i] must be consistent, AND t[i]→s[i] must be consistent. Two tiny maps, one pass, and the seam shows up on its own.",
+    examples: [
+      { in: "s = \"egg\", t = \"add\"", out: "true" },
+      { in: "s = \"foo\", t = \"bar\"", out: "false" },
+      { in: "s = \"badc\", t = \"baba\"", out: "false" }
+    ],
+    constraints: [
+      "s and t have equal length, between 1 and 5·10^4 characters; all lowercase English letters.",
+      "A valid isomorphism is a bijection: each s-letter maps to one t-letter, and each t-letter is mapped from one s-letter. One-to-one, both directions.",
+      "Aim for O(n) time and O(1) extra space — the two maps are bounded by the 26-letter alphabet, so they're constant-size."
+    ],
+    whyItMatters: "This puzzle is the gentlest possible way to learn a habit that saves you in every state-machine, parser, and data-pipeline bug you'll ever debug: a relationship that looks one-directional often isn't. \"s maps to t\" feels like a function, so you build one dictionary and stop — and the bug is the second dictionary you never wrote. The bijection requirement (no two inputs may share an output) is invisible to a forward-only check, and that asymmetry is exactly where the wrong answers hide. The transferable lesson is to ask, of any mapping you build: \"is this supposed to be one-to-one?\" If yes, enforce it in both directions — a forward map and a reverse map, or a single map plus a set of already-used targets. The same instinct guards \"is this a valid variable renaming?\", \"are these two schemas a real bijection?\", and \"does this decode/encode round-trip?\" Whenever you're translating one alphabet into another, write both dictionaries; the seam is where the mistakes live.",
+    hint: "Keep two maps: st (s-letter → t-letter) and ts (t-letter → s-letter). At each index i, if st[s[i]] already exists and isn't t[i], the forward disguise changed — bail. If ts[t[i]] already exists and isn't s[i], two different s-letters are fighting over the same t-letter — bail. Otherwise record both. One pass, two lookups per step. The backward check is the whole point; without it, \"badc\"/\"baba\" slips through.",
+    solution: {
+      lang: "javascript",
+      code: "function isIsomorphic(s, t) {\n  if (s.length !== t.length) return false;\n  const st = {}, ts = {};\n  for (let i = 0; i < s.length; i++) {\n    const cs = s[i], ct = t[i];\n    if (st[cs] !== undefined && st[cs] !== ct) return false; // forward seam\n    if (ts[ct] !== undefined && ts[ct] !== cs) return false; // backward seam\n    st[cs] = ct;\n    ts[ct] = cs;\n  }\n  return true;\n}",
+      notes: "Two maps, one pass, one comparison per direction per index. The forward map st catches a letter of s trying to wear two disguises (\"foo\"/\"bar\": o wants to be both a and r). The backward map ts catches two letters of s fighting over one disguise (\"badc\"/\"baba\": b and d both want to be b). Drop either check and a real counterexample sails through — that's the puzzle's whole point.\n\nTrace example 1: s=\"egg\", t=\"add\".\n• i=0: cs=e, ct=a. st[e], ts[a] both undefined → record st[e]=a, ts[a]=e.\n• i=1: cs=g, ct=d. both undefined → record st[g]=d, ts[d]=g.\n• i=2: cs=g, ct=d. st[g]=d===d ✓, ts[d]=g===g ✓. No change.\n• return true. ✓ The two g's share one disguise (d), and no other s-letter grabs d — a clean bijection.\n\nTrace example 2: s=\"foo\", t=\"bar\".\n• i=0: f→b. record st[f]=b, ts[b]=f.\n• i=1: o→a. record st[o]=a, ts[a]=o.\n• i=2: cs=o, ct=r. st[o]=a, but ct=r → a !== r, forward seam → return false. ✓ The letter o tried to map to both a and r.\n\nTrace example 3: s=\"badc\", t=\"baba\".\n• i=0: b→b. record st[b]=b, ts[b]=b.\n• i=1: a→a. record st[a]=a, ts[a]=a.\n• i=2: cs=d, ct=b. st[d] undefined (forward fine). ts[b]=b, but cs=d → b !== d, backward seam → return false. ✓ Two s-letters (b and d) both claim t-letter b. The forward map alone would have said \"fine\" here — the backward map is what catches it.\n\nWhy both maps are unavoidable: a function can be many-to-one without complaining, but a bijection cannot. st enforces \"each input has one output\" (function); ts enforces \"each output has one input\" (injective). Isomorphism needs both, so the check needs both. The maps are bounded by the alphabet size (26 lowercase letters), so they're O(1) space in the strict sense; time is O(n) — a single left-to-right pass that exits early the moment a seam appears.\n\nVariant to chew on later: \"word pattern\" swaps the letters of t for whole words — \"abba\" vs \"dog cat cat dog\" — and the identical two-map structure solves it, because the bijection idea doesn't care whether the tokens are characters or strings."
+    }
+  },
+  {
     id: "peak-without-a-climb",
     date: "2026-08-26",
     title: "Peak Without a Climb",
