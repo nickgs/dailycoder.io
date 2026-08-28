@@ -115,6 +115,63 @@ def reply_link(item, accounts):
     return url, "Open"
 
 
+def reddit_search_links(date_str, count=3):
+    """Pre-built Reddit searches for the digest — one tap, no typing.
+
+    Reddit is the one source that cannot run in the scheduled job. The server
+    has no browser (hermes was installed --skip-browser, no chrome binary) and
+    Reddit search HTML 403s over plain HTTP from that box. The API is off the
+    table separately: the Responsible Builder Policy requires explicit written
+    approval for commercial use, and DailyCoder funnels to Sego.
+
+    What IS fine is Nick searching Reddit himself. So the digest carries the
+    searches rather than the results — it removes the "what do I even type"
+    friction, which is the part that actually stops him.
+
+    Two hard-won URL details, both from failures on 2026-08-27:
+      - sort=relevance, NOT sort=new. `new` returned Zelda villains and Dead by
+        Daylight threads for a coding query.
+      - t=month keeps it current without starving the result set.
+
+    Phrases rotate by day-of-year so he isn't shown the same three every
+    morning — deterministic, so two runs on the same day agree.
+    """
+    try:
+        with open(os.path.join(HERE, "terms.json"), "r", encoding="utf-8") as fh:
+            cfg = json.load(fh)
+    except (OSError, json.JSONDecodeError):
+        return []
+
+    tiers = cfg.get("tiers") or {}
+    tier3 = (tiers.get("3") or {}).get("terms", [])
+    tier2 = (tiers.get("2") or {}).get("terms", [])
+    if not tier3 and not tier2:
+        return []
+
+    try:
+        day = datetime.strptime(date_str, "%Y-%m-%d").timetuple().tm_yday
+    except (ValueError, TypeError):
+        day = datetime.now(ET).timetuple().tm_yday
+
+    # Always weight toward tier 3 — those are the thesis terms (people worrying
+    # aloud that AI is eroding their craft), which is who DailyCoder is for.
+    # Taking consecutive slices instead clustered badly: one day produced
+    # "project euler" / "codewars" / "exercism", three competitor site names in
+    # a row, which are poor search targets. Draw from both tiers explicitly.
+    n3 = min(len(tier3), max(1, count - 1)) if tier3 else 0
+    n2 = count - n3
+    picked = [tier3[(day * n3 + i) % len(tier3)] for i in range(n3)]
+    if tier2 and n2 > 0:
+        picked += [tier2[(day * n2 + i) % len(tier2)] for i in range(n2)]
+    out = []
+    for phrase in picked:
+        url = "https://www.reddit.com/search/?" + urllib.parse.urlencode(
+            {"q": f'"{phrase}"', "type": "posts", "sort": "relevance", "t": "month"}
+        )
+        out.append((url, phrase))
+    return out
+
+
 def compose_links(text, accounts, platform=None):
     """Pre-filled compose links for a standalone post. Returns [(url, label)]."""
     enabled = accounts.get("enabled_compose") or ["mastodon", "bluesky", "twitter"]
@@ -198,6 +255,18 @@ def render_text(data, accounts):
 
     if not engage and not posts:
         lines.append("Nothing worth your time in the queue today.")
+        lines.append("")
+
+    reddit = reddit_search_links(data.get("date") or "")
+    if reddit:
+        lines.append("=== REDDIT — TAP TO SEARCH (not automated; see note) ===")
+        lines.append("")
+        for url, phrase in reddit:
+            lines.append(f'   "{phrase}"')
+            lines.append(f"   {url}")
+        lines.append("")
+        lines.append("   Or just ask Claude to find Reddit threads — it will")
+        lines.append("   search and filter out anything u/direct151 already replied to.")
         lines.append("")
 
     if data.get("notes"):
@@ -316,6 +385,24 @@ def render_html(data, accounts):
             "Nothing worth your time in the queue today. That is a real answer, "
             "not a failure &mdash; a quiet day beats a forced reply.</div>"
         )
+
+    reddit = reddit_search_links(data.get("date") or "")
+    if reddit:
+        out.append(
+            '<h2 style="font-size:13px;letter-spacing:.09em;text-transform:uppercase;'
+            'color:#8a7c66;margin:22px 0 10px;">Reddit &mdash; tap to search</h2>'
+        )
+        out.append(f'<div style="{css_card}">')
+        for url, phrase in reddit:
+            out.append(button(url, f"“{phrase}”"))
+        out.append(
+            '<div style="font-size:12px;color:#6b6152;margin-top:12px;line-height:1.55;">'
+            "Reddit can&rsquo;t run in this job &mdash; the server has no browser and "
+            "the API needs commercial approval. These are searches, not results. "
+            "Ask Claude to &ldquo;find me Reddit threads&rdquo; for a ranked list "
+            "with anything you&rsquo;ve already replied to filtered out.</div>"
+        )
+        out.append("</div>")
 
     if data.get("notes"):
         out.append(
