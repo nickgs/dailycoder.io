@@ -343,8 +343,126 @@ def src_lemmy(terms, errors):
     return out
 
 
+def _mastodon_home():
+    """Nick's own instance, from accounts.json. A token is only valid there."""
+    try:
+        with open(os.path.join(HERE, "accounts.json"), "r", encoding="utf-8") as fh:
+            return (json.load(fh).get("mastodon_instance") or "").strip().strip("/")
+    except (OSError, json.JSONDecodeError):
+        return ""
+
+
+def _status_to_item(status, source="mastodon"):
+    """Shared shaping for a Mastodon status from either the search or tag path."""
+    body = strip_html(status.get("content"))
+    return {
+        "id": f"mastodon:{status.get('uri') or status.get('id')}",
+        "source": source,
+        "title": body[:120],
+        "url": status.get("url") or status.get("uri") or "",
+        "author": (status.get("account") or {}).get("acct", ""),
+        "excerpt": body[:600],
+        "engagement": (status.get("replies_count") or 0)
+        + (status.get("favourites_count") or 0),
+        "posted_at": (parse_ts(status.get("created_at")) or now_utc()).isoformat(),
+    }, body
+
+
+def src_mastodon_search(terms, errors):
+    """Authenticated post search — real matching instead of firehose filtering.
+
+    Verified 2026-08-27: `/api/v2/search?type=statuses` returns ZERO results
+    unauthenticated on mastodon.social, while `type=hashtags` and
+    `type=accounts` both return results. Post search is precisely the endpoint
+    gated behind a token, which is why this arm exists separately.
+
+    Requires `read:search` on MASTODON_ACCESS_TOKEN. If the token is missing or
+    lacks that scope this returns nothing and the tag-timeline arm carries the
+    load — so revoking the token degrades coverage rather than breaking the run.
+
+    The token authenticates to Nick's OWN instance only, so this searches
+    mastodon.social alone; other instances stay on the unauthenticated tag path.
+
+    Known limit worth confirming empirically: Mastodon full-text status search
+    covers authors who opted into indexing, plus the account's own posts and
+    interactions — not the whole network.
+    """
+    token = os.environ.get("MASTODON_ACCESS_TOKEN")
+    home = _mastodon_home()
+    if not token or not home:
+        return []
+
+    # LANDMINE (verified 2026-08-27): /api/v2/search with an INVALID bearer
+    # token returns HTTP 200 and {"statuses":[]} — it silently degrades to
+    # unauthenticated behaviour instead of failing. So a revoked, expired or
+    # mistyped token is indistinguishable from "nothing matched" unless the
+    # token is checked separately. verify_credentials DOES 401 correctly, so
+    # one cheap call up front converts a silent failure into a loud one.
+    try:
+        urllib.request.urlopen(
+            urllib.request.Request(
+                f"https://{home}/api/v1/accounts/verify_credentials",
+                headers={"User-Agent": UA, "Authorization": f"Bearer {token}"},
+            ),
+            timeout=15,
+        ).read()
+    except urllib.error.HTTPError as exc:
+        errors.append(
+            f"mastodon-search: MASTODON_ACCESS_TOKEN rejected (HTTP {exc.code}). "
+            "Search is silently empty with a bad token, so this is reported "
+            "loudly on purpose. Tag timelines still ran."
+        )
+        return []
+    except (urllib.error.URLError, OSError) as exc:
+        errors.append(f"mastodon-search: could not verify token ({exc})")
+        return []
+
+    out = []
+    phrases = [t for w, t in terms["weighted"] if w >= 2][:8]
+    for phrase in phrases:
+        url = f"https://{home}/api/v2/search?" + urllib.parse.urlencode(
+            {"q": phrase, "type": "statuses", "limit": 20, "resolve": "false"}
+        )
+        req = urllib.request.Request(
+            url, headers={"User-Agent": UA, "Authorization": f"Bearer {token}"}
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                data = json.loads(resp.read().decode("utf-8", "replace"))
+        except urllib.error.HTTPError as exc:
+            # 403 here almost always means the token lacks read:search. Say so
+            # once, in those words, rather than 8 times as a bare status code.
+            if exc.code == 403:
+                errors.append(
+                    "mastodon-search: 403 — token is missing the read:search "
+                    "scope; falling back to tag timelines"
+                )
+                return out
+            errors.append(f"mastodon-search[{phrase}]: HTTP {exc.code}")
+            continue
+        except (urllib.error.URLError, OSError, json.JSONDecodeError) as exc:
+            errors.append(f"mastodon-search[{phrase}]: {type(exc).__name__}: {exc}")
+            continue
+
+        for status in data.get("statuses", []):
+            if status.get("reblog"):
+                continue
+            posted = parse_ts(status.get("created_at"))
+            if not fresh_enough(posted):
+                continue
+            item, body = _status_to_item(status)
+            score, matched = score_text(body, terms)
+            if score < terms["min_score"]:
+                continue
+            item["score"] = score
+            item["matched"] = matched
+            out.append(item)
+    return out
+
+
 def src_mastodon(terms, errors):
-    """Public tag timelines. /api/v2/search needs auth; these genuinely don't."""
+    """Public tag timelines. Works with no credentials at all, and is the
+    fallback whenever the authenticated search arm is unavailable."""
     out = []
     instances = ("fosstodon.org", "mastodon.social", "hachyderm.io")
     tags = ("programming", "coding", "softwaredevelopment", "webdev")
@@ -512,6 +630,10 @@ SOURCES = {
     "hackernews": src_hackernews,
     "lobsters": src_lobsters,
     "lemmy": src_lemmy,
+    # Search runs before tag timelines so its (better-targeted) hits win the
+    # per-source cap. Both write the same `mastodon:<uri>` id, so the SQLite
+    # primary key dedupes anything the two arms both find.
+    "mastodon-search": src_mastodon_search,
     "mastodon": src_mastodon,
     "reddit": src_reddit,
 }
