@@ -1,0 +1,15 @@
+{
+  "_comment": "Where Nick posts from. Drives the one-tap action links in the digest email. Read at runtime by send_digest.py — edit and the next digest picks it up, no code change and no redeploy.",
+
+  "identity": "personal",
+  "_identity_note": "Nick posts as himself, not as a DailyCoder brand account (confirmed 2026-08-27). Replies stay first-person and lean on 20+ years of actually building software. If this ever changes to 'brand', the voice rules in agent/social-digest.md need updating too.",
+
+  "mastodon_instance": null,
+  "_mastodon_note": "FILL THIS IN — e.g. \"fosstodon.org\" (no https://, no @). It is the instance Nick's OWN account lives on. With it set, the digest can emit /authorize_interaction links that open a remote post inside his own instance already set up to reply — the difference between one tap and a manual copy-paste-search. Without it the digest degrades gracefully to a plain link to the post on its home server, which still works but takes four more taps.",
+
+  "bluesky_handle": null,
+  "_bluesky_note": "Optional, cosmetic only. Compose intent links work without it.",
+
+  "enabled_compose": ["mastodon", "bluesky", "twitter"],
+  "_enabled_compose_note": "Which platforms get a pre-filled compose button for standalone posts. Hacker News and Reddit are deliberately absent: neither has a compose-intent URL, and on both the right move is replying inside an existing thread anyway, which the per-item action link already handles."
+}

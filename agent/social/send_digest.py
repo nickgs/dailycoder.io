@@ -44,11 +44,15 @@ import os
 import sqlite3
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 ET = ZoneInfo("America/New_York")
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ACCOUNTS_PATH = os.path.join(HERE, "accounts.json")
 
 STATE_DIR = os.environ.get(
     "DC_SOCIAL_STATE", os.path.join(os.path.expanduser("~"), ".hermes", "state")
@@ -56,11 +60,105 @@ STATE_DIR = os.environ.get(
 DB_PATH = os.path.join(STATE_DIR, "dailycoder_social.db")
 
 
+def load_accounts():
+    try:
+        with open(ACCOUNTS_PATH, "r", encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+# --------------------------------------------------------------------------
+# action links — the whole point of the email
+#
+# Nick posts by hand from his own accounts, as himself. Nothing here automates
+# a post; these are just the shortest path from "reading the digest on a phone"
+# to "cursor blinking in a reply box on the right thread". Every one is a plain
+# link a human taps.
+# --------------------------------------------------------------------------
+
+
+def reply_link(item, accounts):
+    """Best available 'go reply to this' link. Returns (url, label)."""
+    source = (item.get("source") or "").lower()
+    url = item.get("url") or ""
+
+    if source == "mastodon":
+        # A Mastodon post lives on ITS OWN server, where Nick is not logged in.
+        # /authorize_interaction on his HOME instance pulls the remote post into
+        # his own session so the reply box is his account. Without the instance
+        # configured this is impossible, and the raw link means: open it, copy
+        # the URL, paste it into your own instance's search, then reply.
+        instance = (accounts.get("mastodon_instance") or "").strip().strip("/")
+        uri = item.get("uri") or url
+        if instance and uri:
+            return (
+                f"https://{instance}/authorize_interaction?"
+                + urllib.parse.urlencode({"uri": uri}),
+                "Reply from your account",
+            )
+        return url, "Open post (set mastodon_instance for 1-tap reply)"
+
+    if source == "hackernews":
+        # HN has no reply-intent URL; the item page has the reply box on it.
+        return url, "Open thread on HN"
+
+    if source == "reddit":
+        return url, "Open thread on Reddit"
+
+    if source == "lobsters":
+        return url, "Open thread on Lobsters"
+
+    if source == "lemmy":
+        return url, "Open thread"
+
+    return url, "Open"
+
+
+def compose_links(text, accounts, platform=None):
+    """Pre-filled compose links for a standalone post. Returns [(url, label)]."""
+    enabled = accounts.get("enabled_compose") or ["mastodon", "bluesky", "twitter"]
+    if platform:
+        wanted = [platform.lower()]
+    else:
+        wanted = [p.lower() for p in enabled]
+
+    out = []
+    for name in wanted:
+        if name in ("mastodon", "fediverse"):
+            instance = (accounts.get("mastodon_instance") or "").strip().strip("/")
+            if instance:
+                out.append(
+                    (
+                        f"https://{instance}/share?"
+                        + urllib.parse.urlencode({"text": text}),
+                        "Compose on Mastodon",
+                    )
+                )
+        elif name in ("bluesky", "bsky"):
+            out.append(
+                (
+                    "https://bsky.app/intent/compose?"
+                    + urllib.parse.urlencode({"text": text}),
+                    "Compose on Bluesky",
+                )
+            )
+        elif name in ("twitter", "x"):
+            out.append(
+                (
+                    "https://x.com/intent/tweet?"
+                    + urllib.parse.urlencode({"text": text}),
+                    "Compose on X",
+                )
+            )
+    return out
+
+
 def esc(text):
     return html.escape(str(text or ""))
 
 
-def render_text(data):
+def render_text(data, accounts):
     lines = []
     puzzle = data.get("puzzle") or {}
     if puzzle.get("title"):
@@ -75,7 +173,8 @@ def render_text(data):
         lines.append("")
         for n, item in enumerate(engage, 1):
             lines.append(f"{n}. [{item.get('source','?')}] {item.get('title','')}")
-            lines.append(f"   {item.get('url','')}")
+            link, label = reply_link(item, accounts)
+            lines.append(f"   {label}: {link}")
             if item.get("why"):
                 lines.append(f"   WHY: {item['why']}")
             if item.get("draft"):
@@ -91,6 +190,10 @@ def render_text(data):
             lines.append(f"   {post.get('text','')}")
             if post.get("note"):
                 lines.append(f"   ({post['note']})")
+            for url, label in compose_links(
+                post.get("text", ""), accounts, post.get("platform")
+            ):
+                lines.append(f"   {label}: {url}")
             lines.append("")
 
     if not engage and not posts:
@@ -101,13 +204,29 @@ def render_text(data):
         lines.append(f"NOTES: {data['notes']}")
         lines.append("")
     lines.append(
-        f"({data.get('skipped', 0)} items scored but discarded. "
-        "Nothing here has been posted — every item is yours to send or ignore.)"
+        f"({data.get('skipped', 0)} items scored but discarded. Nothing here has "
+        "been posted and nothing will be — every link opens a normal compose box "
+        "in your own logged-in account, and you send it yourself.)"
     )
     return "\n".join(lines)
 
 
-def render_html(data):
+def button(url, label, primary=False):
+    """A tap target big enough for a thumb. Email clients only reliably style
+    inline <a>, so everything is inline CSS and nothing depends on a class."""
+    bg = "#b5642f" if primary else "#f3ecdd"
+    fg = "#ffffff" if primary else "#5c5344"
+    border = "#b5642f" if primary else "#ddd2ba"
+    return (
+        f'<a href="{esc(url)}" style="display:inline-block;padding:11px 17px;'
+        f"margin:6px 7px 0 0;background:{bg};color:{fg};border:1px solid {border};"
+        "border-radius:6px;text-decoration:none;font-size:14px;font-weight:bold;"
+        "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"
+        f'">{esc(label)}</a>'
+    )
+
+
+def render_html(data, accounts):
     puzzle = data.get("puzzle") or {}
     engage = data.get("engage") or []
     posts = data.get("posts") or []
@@ -157,11 +276,14 @@ def render_html(data):
             if item.get("draft"):
                 out.append(
                     '<div style="font-size:11px;letter-spacing:.07em;text-transform:uppercase;'
-                    'color:#a0937c;margin:12px 0 5px;">Suggested reply</div>'
+                    'color:#a0937c;margin:12px 0 5px;">Suggested reply &mdash; select to copy</div>'
                     '<div style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;'
                     "font-size:14px;line-height:1.55;background:#f3ecdd;border-radius:6px;"
                     f'padding:11px 13px;white-space:pre-wrap;">{esc(item["draft"])}</div>'
                 )
+            link, label = reply_link(item, accounts)
+            if link:
+                out.append(button(link, label, primary=True))
             out.append("</div>")
 
     if posts:
@@ -183,6 +305,9 @@ def render_html(data):
                     f'<div style="font-size:12px;color:#6b6152;margin-top:7px;'
                     f'font-style:italic;">{esc(post["note"])}</div>'
                 )
+            links = compose_links(post.get("text", ""), accounts, post.get("platform"))
+            for n, (url, label) in enumerate(links):
+                out.append(button(url, label, primary=(n == 0)))
             out.append("</div>")
 
     if not engage and not posts:
@@ -198,17 +323,26 @@ def render_html(data):
             f'{esc(data["notes"])}</div>'
         )
 
+    footer = (
+        f'{int(data.get("skipped", 0))} items scored but discarded. '
+        "Nothing here has been posted anywhere and nothing will be &mdash; "
+        "every button opens a normal compose box in your own logged-in account, "
+        "and you type or paste and send it yourself."
+    )
+    if not (accounts.get("mastodon_instance") or "").strip():
+        footer += (
+            " <b>Tip:</b> set <code>mastodon_instance</code> in "
+            "<code>agent/social/accounts.json</code> to turn Mastodon posts into "
+            "one-tap replies from your own account."
+        )
     out.append(
         '<div style="font-size:11px;color:#a0937c;margin-top:18px;line-height:1.6;'
-        'border-top:1px solid #e6ddc9;padding-top:12px;">'
-        f'{int(data.get("skipped", 0))} items scored but discarded. '
-        "Nothing here has been posted anywhere &mdash; every line is a draft "
-        "waiting on you.</div></div>"
+        f'border-top:1px solid #e6ddc9;padding-top:12px;">{footer}</div></div>'
     )
     return "".join(out)
 
 
-def send(data, subject):
+def send(data, subject, accounts):
     api_key = os.environ.get("RESEND_API_KEY")
     if not api_key:
         print("NOT SENT — RESEND_API_KEY missing from the job environment")
@@ -218,8 +352,8 @@ def send(data, subject):
             "from": os.environ.get("AGENT_MAIL_FROM", "Hermes <hermes@mystack.co>"),
             "to": [os.environ.get("AGENT_MAIL_TO", "nick@segosolutions.com")],
             "subject": subject,
-            "text": render_text(data),
-            "html": render_html(data),
+            "text": render_text(data, accounts),
+            "html": render_html(data, accounts),
         }
     ).encode()
     req = urllib.request.Request(
@@ -279,6 +413,7 @@ def main():
         print(f"stdin is not valid JSON ({exc}) — nothing sent")
         return 1
 
+    accounts = load_accounts()
     engage = data.get("engage") or []
     posts = data.get("posts") or []
     today = data.get("date") or datetime.now(ET).strftime("%Y-%m-%d")
@@ -290,11 +425,11 @@ def main():
 
     if args.dry_run:
         print(f"SUBJECT: {subject}\n")
-        print(render_text(data))
+        print(render_text(data, accounts))
         print(f"\n[dry run — nothing sent, nothing marked delivered]")
         return 0
 
-    if not send(data, subject):
+    if not send(data, subject, accounts):
         return 1
 
     ids = [i["id"] for i in engage if i.get("id")]

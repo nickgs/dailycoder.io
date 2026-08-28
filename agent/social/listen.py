@@ -384,11 +384,133 @@ def src_mastodon(terms, errors):
     return out
 
 
+"""Subreddits worth listening to, as ONE multireddit request.
+
+Reddit rate-limits unauthenticated access hard from this box: six sequential
+`/r/<sub>/new.rss` fetches 2s apart all returned 429, while single requests
+spaced ~75s apart returned 200. A multireddit URL (`/r/a+b+c/new.rss`) collapses
+the whole set into a single request per run, which keeps this comfortably inside
+whatever the limit is at four runs a day.
+
+This is why the JSON API is not used: `www.reddit.com/r/x/new.json` and
+`oauth.reddit.com` both 403 outright without a registered app, but the RSS feed
+is served. If Reddit tightens this, the fix is a registered OAuth script app
+(free, 100 QPM) — Nick has to create it, and that also unlocks search.
+"""
+REDDIT_SUBS = (
+    "programming",
+    "learnprogramming",
+    "ExperiencedDevs",
+    "webdev",
+    "compsci",
+)
+
+ATOM_NS = {"a": "http://www.w3.org/2005/Atom"}
+
+
+def _reddit_feed_urls(terms):
+    """Search first, then a broad fallback.
+
+    Measured 2026-08-27: 100 posts from `/new` across all five subs produced
+    ZERO keyword hits. `/new` is a firehose of routine questions, and the
+    vocabulary here is specific — filtering a firehose is the wrong shape.
+    Reddit's own search does the matching server-side, so one request returns
+    only things that already mention the terms.
+
+    `hot` is the fallback for when search 429s or returns nothing parseable,
+    so a bad search still leaves some coverage rather than none.
+    """
+    subs = "+".join(REDDIT_SUBS)
+    phrases = [t for w, t in terms["weighted"] if w >= 2][:12]
+    query = " OR ".join(f'"{p}"' for p in phrases)
+    search = "https://www.reddit.com/r/" + subs + "/search.rss?" + urllib.parse.urlencode(
+        {"q": query, "restrict_sr": "1", "sort": "new", "t": "week", "limit": "50"}
+    )
+    return [("search", search), ("hot", f"https://www.reddit.com/r/{subs}/hot.rss?limit=100")]
+
+
+def src_reddit(terms, errors):
+    """Reddit via the public Atom feed. One request per run in the good case."""
+    import xml.etree.ElementTree as ET
+
+    out = []
+    root = None
+    for label, url in _reddit_feed_urls(terms):
+        req = urllib.request.Request(url, headers={"User-Agent": UA})
+        try:
+            with urllib.request.urlopen(req, timeout=25) as resp:
+                raw = resp.read().decode("utf-8", "replace")
+        except urllib.error.HTTPError as exc:
+            # 429 is the expected failure and is not worth alarming about — it
+            # just means this run listens to the other four sources.
+            errors.append(f"reddit[{label}]: HTTP {exc.code}")
+            continue
+        except (urllib.error.URLError, OSError) as exc:
+            errors.append(f"reddit[{label}]: {type(exc).__name__}: {exc}")
+            continue
+        try:
+            candidate = ET.fromstring(raw)
+        except ET.ParseError as exc:
+            errors.append(f"reddit[{label}]: feed is not valid XML ({exc})")
+            continue
+        entries = candidate.findall("a:entry", ATOM_NS)
+        if entries:
+            root = candidate
+            break
+        errors.append(f"reddit[{label}]: feed parsed but held no entries")
+
+    if root is None:
+        return out
+
+    for entry in root.findall("a:entry", ATOM_NS):
+        def text_of(tag):
+            node = entry.find(f"a:{tag}", ATOM_NS)
+            return (node.text or "").strip() if node is not None else ""
+
+        native_id = text_of("id")  # e.g. t3_1abc2de
+        title = text_of("title")
+        posted = parse_ts(text_of("updated") or text_of("published"))
+        if not fresh_enough(posted):
+            continue
+
+        link_node = entry.find("a:link", ATOM_NS)
+        link = link_node.get("href") if link_node is not None else ""
+        if not link:
+            continue
+
+        content_node = entry.find("a:content", ATOM_NS)
+        body = strip_html(content_node.text if content_node is not None else "")
+
+        author_node = entry.find("a:author/a:name", ATOM_NS)
+        author = (author_node.text or "").strip() if author_node is not None else ""
+
+        score, matched = score_text(f"{title} {body}", terms)
+        if score < terms["min_score"]:
+            continue
+
+        out.append(
+            {
+                "id": f"reddit:{native_id or link}",
+                "source": "reddit",
+                "title": title,
+                "url": link,
+                "author": author,
+                "excerpt": body[:600],
+                "score": score,
+                "matched": matched,
+                "engagement": 0,  # not exposed in the Atom feed
+                "posted_at": (posted or now_utc()).isoformat(),
+            }
+        )
+    return out
+
+
 SOURCES = {
     "hackernews": src_hackernews,
     "lobsters": src_lobsters,
     "lemmy": src_lemmy,
     "mastodon": src_mastodon,
+    "reddit": src_reddit,
 }
 
 
@@ -465,12 +587,24 @@ def cmd_report(args):
            LIMIT ?""",
         (args.limit,),
     ).fetchall()
+    def ap_uri(row):
+        """Mastodon ids are 'mastodon:<activitypub uri>', and the digest needs
+        that uri to build an /authorize_interaction link — the thing that opens
+        a remote post inside Nick's OWN instance so he can reply as himself.
+        Guarded because the collector falls back to a numeric id when a status
+        carries no uri, and feeding that to authorize_interaction just errors."""
+        if row["source"] != "mastodon":
+            return None
+        candidate = row["id"].split(":", 1)[1] if ":" in row["id"] else ""
+        return candidate if candidate.startswith("http") else None
+
     payload = [
         {
             "id": r["id"],
             "source": r["source"],
             "title": r["title"],
             "url": r["url"],
+            "uri": ap_uri(r),
             "author": r["author"],
             "excerpt": r["excerpt"],
             "score": r["score"],

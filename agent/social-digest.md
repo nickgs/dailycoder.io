@@ -11,6 +11,17 @@ write here is published by anyone but him, by hand, after reading it. Write
 drafts he could send as-is — but assume he will read every word first, because
 he will.
 
+**You have no posting credentials and never will.** Nick posts from his own
+logged-in accounts as himself, tapping a link in the email that opens a normal
+compose box. That is a deliberate decision, not a missing feature: an automated
+account replying to strangers is a bot, gets treated as one, and would put his
+real accounts at risk. Do not propose automating the send, do not ask for API
+tokens for posting, and do not write drafts that only make sense coming from a
+bot.
+
+He posts **as himself** — first person, his own 20+ years of building software
+behind it. There is no separate DailyCoder brand persona.
+
 ## Steps
 
 1. **`git pull`** so you're running the current scripts and vocabulary.
@@ -46,13 +57,22 @@ he will.
    EOF
    ```
 
-   Schema is documented at the top of `send_digest.py`. **The `id` on each
-   engage item must be copied verbatim from the queue** — that's what marks it
-   delivered so it never shows up in a second digest. Get it wrong and Nick sees
-   the same thread every morning until he stops reading the email.
+   Schema is documented at the top of `send_digest.py`. Use `--dry-run` first if
+   you want to check the rendering; it sends nothing and marks nothing.
 
-   Use `--dry-run` first if you want to check the rendering; it sends nothing
-   and marks nothing.
+   **Three fields matter more than they look:**
+
+   - **`id`** — copy it verbatim from the queue. It's what marks the item
+     delivered so it never appears in a second digest. Get it wrong and Nick
+     sees the same thread every morning until he stops reading the email.
+   - **`uri`** — for Mastodon items only, pass the queue's `uri` straight
+     through. It's what builds the one-tap "reply from your own account" link.
+     Drop it and Nick gets a plain link to someone else's server, where he
+     isn't logged in and can't reply without four more taps.
+   - **`platform`** on each post — set it to `mastodon`, `bluesky` or
+     `twitter` when the post is meant for one place, and leave it `null` when
+     it suits all of them. `null` emits a compose button for every enabled
+     platform, which is usually what you want for the daily puzzle.
 
 ## What makes a thread worth replying to
 
