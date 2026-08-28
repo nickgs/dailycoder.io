@@ -408,34 +408,46 @@ REDDIT_SUBS = (
 ATOM_NS = {"a": "http://www.w3.org/2005/Atom"}
 
 
-def _reddit_feed_urls(terms):
-    """Search first, then a broad fallback.
+# Seconds to wait between the two Reddit requests. Measured 2026-08-27 on this
+# box: six sequential listing-feed fetches 2s apart ALL returned 429, while six
+# spaced 75s apart ALL returned 200 (6/6). 40s is a deliberate compromise — the
+# run stays under a minute and the second request is the expendable one.
+REDDIT_REQUEST_SPACING = 40
 
-    Measured 2026-08-27: 100 posts from `/new` across all five subs produced
-    ZERO keyword hits. `/new` is a firehose of routine questions, and the
-    vocabulary here is specific — filtering a firehose is the wrong shape.
-    Reddit's own search does the matching server-side, so one request returns
-    only things that already mention the terms.
 
-    `hot` is the fallback for when search 429s or returns nothing parseable,
-    so a bad search still leaves some coverage rather than none.
+def _reddit_feed_urls():
+    """Listing feeds only. `search.rss` is deliberately not used.
+
+    Two measurements, both from this box on 2026-08-27:
+
+    - `search.rss` is throttled far harder than listing feeds. It returned 429
+      while `new.rss` returned 200 in the same moment, and 429'd again after a
+      70s wait. It is not dependable enough to build on.
+    - `/new` across all five subs produced ZERO keyword hits from 100 posts.
+      It is a firehose of routine questions.
+
+    So: `hot` first (the threads with actual discussion, which is what is worth
+    replying to anyway), `new` second to catch things on the way up. Yield is
+    genuinely lower than the other sources — filtering a firehose is a worse
+    shape than searching, and the real fix is a registered OAuth script app
+    (free, 100 QPM, unlocks proper search). Nick has to create that.
     """
     subs = "+".join(REDDIT_SUBS)
-    phrases = [t for w, t in terms["weighted"] if w >= 2][:12]
-    query = " OR ".join(f'"{p}"' for p in phrases)
-    search = "https://www.reddit.com/r/" + subs + "/search.rss?" + urllib.parse.urlencode(
-        {"q": query, "restrict_sr": "1", "sort": "new", "t": "week", "limit": "50"}
-    )
-    return [("search", search), ("hot", f"https://www.reddit.com/r/{subs}/hot.rss?limit=100")]
+    return [
+        ("hot", f"https://www.reddit.com/r/{subs}/hot.rss?limit=100"),
+        ("new", f"https://www.reddit.com/r/{subs}/new.rss?limit=100"),
+    ]
 
 
 def src_reddit(terms, errors):
-    """Reddit via the public Atom feed. One request per run in the good case."""
+    """Reddit via public Atom listing feeds, at most two requests per run."""
     import xml.etree.ElementTree as ET
 
     out = []
-    root = None
-    for label, url in _reddit_feed_urls(terms):
+    entries = []
+    for index, (label, url) in enumerate(_reddit_feed_urls()):
+        if index:
+            time.sleep(REDDIT_REQUEST_SPACING)
         req = urllib.request.Request(url, headers={"User-Agent": UA})
         try:
             with urllib.request.urlopen(req, timeout=25) as resp:
@@ -449,20 +461,11 @@ def src_reddit(terms, errors):
             errors.append(f"reddit[{label}]: {type(exc).__name__}: {exc}")
             continue
         try:
-            candidate = ET.fromstring(raw)
+            entries.extend(ET.fromstring(raw).findall("a:entry", ATOM_NS))
         except ET.ParseError as exc:
             errors.append(f"reddit[{label}]: feed is not valid XML ({exc})")
-            continue
-        entries = candidate.findall("a:entry", ATOM_NS)
-        if entries:
-            root = candidate
-            break
-        errors.append(f"reddit[{label}]: feed parsed but held no entries")
 
-    if root is None:
-        return out
-
-    for entry in root.findall("a:entry", ATOM_NS):
+    for entry in entries:
         def text_of(tag):
             node = entry.find(f"a:{tag}", ATOM_NS)
             return (node.text or "").strip() if node is not None else ""
