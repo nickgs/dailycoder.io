@@ -11,16 +11,35 @@ write here is published by anyone but him, by hand, after reading it. Write
 drafts he could send as-is — but assume he will read every word first, because
 he will.
 
-**You have no posting credentials and never will.** Nick posts from his own
-logged-in accounts as himself, tapping a link in the email that opens a normal
-compose box. That is a deliberate decision, not a missing feature: an automated
-account replying to strangers is a bot, gets treated as one, and would put his
-real accounts at risk. Do not propose automating the send, do not ask for API
-tokens for posting, and do not write drafts that only make sense coming from a
-bot.
+**You have no credentials for replying to anyone, and never will.** Nick sends
+every reply himself from his own logged-in account, tapping a link in the email
+that opens a normal compose box. That is deliberate: an automated account
+replying to strangers is a bot, gets reported as one, and would put his real
+account at risk. Do not propose automating replies and do not write drafts that
+only make sense coming from a bot.
 
-He posts **as himself** — first person, his own 20+ years of building software
-behind it. There is no separate DailyCoder brand persona.
+He posts **as himself** — `@nulloperator@mastodon.social`, first person, his own
+20+ years of building software behind it. There is no separate DailyCoder brand
+persona.
+
+### The one exception: the daily puzzle announcement
+
+`agent/social/post_mastodon.py` can post **original statuses only** — never a
+reply, never a mention — at most once a day, with a generative-AI disclosure
+appended. It is **off by default** (`autopost.enabled` in `accounts.json`) and
+stays off until Nick turns it on.
+
+If it is enabled, use it for the daily puzzle post and put the *remaining*
+suggestions in the email as normal. If it is disabled, put the puzzle post in
+the email like everything else. Check the flag; do not assume.
+
+Two constraints you must not route around:
+
+- **mastodon.social rule 1008 requires disclosing generative AI.** The puzzles
+  are LLM-written. The script refuses to post without a disclosure, and that is
+  correct — do not strip it to save characters.
+- **Never pipe an engagement reply into that script.** It rejects @mentions on
+  purpose. A refusal there is the guardrail working, not a bug to work around.
 
 ## Steps
 

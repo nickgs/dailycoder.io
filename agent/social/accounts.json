@@ -4,8 +4,20 @@
   "identity": "personal",
   "_identity_note": "Nick posts as himself, not as a DailyCoder brand account (confirmed 2026-08-27). Replies stay first-person and lean on 20+ years of actually building software. If this ever changes to 'brand', the voice rules in agent/social-digest.md need updating too.",
 
-  "mastodon_instance": null,
-  "_mastodon_note": "FILL THIS IN — e.g. \"fosstodon.org\" (no https://, no @). It is the instance Nick's OWN account lives on. With it set, the digest can emit /authorize_interaction links that open a remote post inside his own instance already set up to reply — the difference between one tap and a manual copy-paste-search. Without it the digest degrades gracefully to a plain link to the post on its home server, which still works but takes four more taps.",
+  "mastodon_instance": "mastodon.social",
+  "mastodon_handle": "nulloperator",
+  "_mastodon_note": "Set 2026-08-27. Enables /authorize_interaction links that open a remote post inside Nick's own instance already set up to reply — one tap instead of copy-paste-search.",
+
+  "autopost": {
+    "enabled": false,
+    "_enabled_note": "OFF. Turn on ONLY after reading _autopost_rules below and after MASTODON_ACCESS_TOKEN exists in /srv/agents/nick/env. Flipping this to true is a deliberate act with consequences on a real account.",
+    "platform": "mastodon",
+    "originals_only": true,
+    "_originals_only_note": "HARD RULE, enforced in post_mastodon.py, not just here. Auto-post original statuses (the daily puzzle) only. NEVER auto-reply and NEVER auto-mention anyone. Unsolicited automated replies to strangers are what gets an account reported as a bot — that risk is the entire reason this exists in a scoped form rather than as 'let the agent post'.",
+    "max_per_day": 1,
+    "ai_disclosure": "🤖 Puzzle written by an AI agent; posted automatically.",
+    "_ai_disclosure_note": "REQUIRED, not decorative. mastodon.social rule 1008: 'Content created by others must be attributed, and use of generative AI must be disclosed.' The DailyCoder puzzles are LLM-written, so any automated post carrying one must disclose it. post_mastodon.py refuses to post without a non-empty disclosure while autopost is enabled."
+  },
 
   "bluesky_handle": null,
   "_bluesky_note": "Optional, cosmetic only. Compose intent links work without it.",
