@@ -33,10 +33,15 @@ Nick's Mac pulls from it. Always start from a clean `git pull`.
    place:
 
    ```bash
-   npx -y -p @mystack.co/mcp mystack-push --dir ./dist --project dailycoder
+   npx -y -p @mystack.co/mcp mystack-push \
+     --dir ./dist --project dailycoder \
+     --token "$MYSTACK_API_KEY" --api-url "$MYSTACK_API_URL"
    ```
 
    `MYSTACK_API_KEY` and `MYSTACK_API_URL` are already in the job's environment.
+   The CLI does NOT auto-read `MYSTACK_API_KEY` — it requires `--token` explicitly
+   (it sends the value as the `X-API-Key` header). Omitting `--token` fails with
+   `[mystack-push] --token <ticket> is required.` and nothing is published.
 
 6. **Verify** — fetch `https://dailycoder.io/today.json` and confirm `date`
    matches today and `title` is the new puzzle. If it doesn't match, the send
