@@ -22,6 +22,34 @@
  */
 window.CHALLENGES = [
   {
+    id: "the-last-sighting",
+    date: "2026-11-05",
+    title: "The Last Sighting",
+    blurb: "Chop a string into as many pieces as possible so that no letter appears in more than one piece. The trick: you only need to know where each letter is seen for the last time.",
+    difficulty: "Medium",
+    minutes: 12,
+    tags: ["greedy","hashing","strings"],
+    prompt: "You're given a string s of lowercase letters. Split it into as many contiguous pieces as possible so that every letter appears in at most one piece. In other words, if a letter shows up in a piece, every occurrence of that letter in the whole string must be inside that same piece.\n\nGluing the pieces back together in order must give back s. Return the lengths of the pieces, from left to right.\n\nFor example, s = \"abacdc\" splits into \"aba\" and \"cdc\", so the answer is [3, 3]. You can't cut after the first \"a\", because another \"a\" turns up at index 2. Once you reach index 2, though, every letter you've seen (a and b) is finished, so a cut there is safe.\n\nThe obvious approach is to try each cut point and check whether any letter on the left also appears on the right. That works, but it rescans the string over and over. There's a way to do it in two passes, using one fact per letter.",
+    examples: [
+      { in: "s = \"ababcbacadefegdehijhklij\"", out: "[9, 7, 8]  — \"ababcbaca\", \"defegde\", \"hijhklij\"" },
+      { in: "s = \"eccbbbbdec\"", out: "[10]  — the 'e' at index 0 returns at index 8 and the 'c' at index 9, so nothing can be cut" },
+      { in: "s = \"abacdc\"", out: "[3, 3]  — \"aba\", \"cdc\"" }
+    ],
+    constraints: [
+      "1 ≤ s.length ≤ 500",
+      "s contains only lowercase English letters a–z.",
+      "Return the piece lengths in left-to-right order. Their sum must equal s.length.",
+      "Aim for O(n) time and O(1) extra space (the alphabet has a fixed size of 26)."
+    ],
+    whyItMatters: "This is greedy reasoning with a clear proof. You cut at the first spot where it's safe, and cutting early never costs you anything: a cut that's legal now is still legal however the rest of the string is split, so taking it straight away can only increase the number of pieces.\n\nThe more general habit is precomputing what you'll need later. The naive version keeps asking 'does this letter show up again further on?' and pays for a scan every time. One pass that records each letter's last index turns that question into an O(1) lookup. The same pattern shows up in merging overlapping intervals (here each letter is really the interval from its first to its last appearance, and you're merging them), in jump-game reachability, and in any problem where you track how far the current commitment extends.",
+    hint: "Before you start cutting, make one pass and record the LAST index where each letter appears. Then walk the string from the left, keeping track of the furthest last-index among the letters in your current piece. When your position reaches that index, you can cut.",
+    solution: {
+      lang: "javascript",
+      code: "function partitionLabels(s) {\n  // Pass 1: where does each letter make its final appearance?\n  const last = {};\n  for (let i = 0; i < s.length; i++) last[s[i]] = i;\n\n  // Pass 2: stretch the current piece until we stand on its horizon.\n  const sizes = [];\n  let start = 0, end = 0;\n  for (let i = 0; i < s.length; i++) {\n    end = Math.max(end, last[s[i]]);   // this letter drags the boundary out\n    if (i === end) {                    // nothing inside reaches further: cut\n      sizes.push(end - start + 1);\n      start = i + 1;\n    }\n  }\n  return sizes;\n}\n",
+      notes: "Two passes, O(n) time, O(1) extra space (at most 26 entries in the last-index table).\n\nWhy it's correct: `end` is the furthest point that any letter in the current piece still reaches. If i < end, some letter in the piece appears again later, so a cut here would split that letter across two pieces. If i === end, every letter in the piece is finished, so the cut is legal. It's also the earliest legal cut, and cutting as early as possible gives the most pieces.\n\nTrace of s = \"abacdc\" → [3, 3]. Last indexes: a=2, b=1, c=5, d=4.\n• i=0 'a': end = max(0, 2) = 2\n• i=1 'b': end = max(2, 1) = 2\n• i=2 'a': end = 2, and i === end, so cut. Size 2−0+1 = 3. start = 3\n• i=3 'c': end = max(2, 5) = 5\n• i=4 'd': end = max(5, 4) = 5\n• i=5 'c': i === end, so cut. Size 5−3+1 = 3 ✓\n\nTrace of s = \"ababcbacadefegdehijhklij\" → [9, 7, 8]. Last indexes: a=8, b=5, c=7, d=14, e=15, f=11, g=13, h=19, i=22, j=23, k=20, l=21.\n• Indexes 0–8: 'a' sets end = 8. b (5) and c (7) stay inside that, so at i=8 we cut. Size 9.\n• Indexes 9–15: 'd' sets end = 14, then 'e' pushes it to 15. f (11) and g (13) stay inside, so at i=15 we cut. Size 7.\n• Indexes 16–23: 'h' sets end = 19, then 'i' pushes it to 22 and 'j' to 23. k (20) and l (21) stay inside, so at i=23 we cut. Size 8 ✓\n\nTrace of s = \"eccbbbbdec\" → [10]. Last indexes: e=8, c=9, b=6, d=7. 'e' sets end = 8, and at i=1 'c' pushes it to 9. Nothing reaches past 9, but i never equals end before index 9, so the only cut is at the end of the string. Size 10 ✓"
+    }
+  },
+  {
     id: "the-lone-survivor",
     date: "2026-11-04",
     title: "The Lone Survivor",
