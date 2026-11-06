@@ -22,6 +22,33 @@
  */
 window.CHALLENGES = [
   {
+    id: "where-the-zeros-come-from",
+    date: "2026-11-06",
+    title: "Where the Zeros Come From",
+    blurb: "How many zeros sit at the end of n factorial? You can't compute 100! by hand, and you don't need to. You only need to count the fives.",
+    difficulty: "Easy",
+    minutes: 8,
+    tags: ["math"],
+    prompt: "Given a non-negative integer n, return how many trailing zeros n! has. (n! = 1 × 2 × 3 × … × n, and 0! = 1.)\n\nFor example, 5! = 120, which ends in one zero, so the answer for n = 5 is 1. And 10! = 3,628,800 ends in two zeros, so the answer for n = 10 is 2.\n\nThe obvious approach is to compute n! and count the zeros at the end. That works up to about n = 20, then the number overflows any normal integer type. 100! has 158 digits. Even with big integers you'd be doing far more work than the question needs.\n\nYou never need the factorial itself. Think about where a zero at the end of a number actually comes from.",
+    examples: [
+      { in: "n = 10", out: "2  — 10! = 3628800" },
+      { in: "n = 25", out: "6  — five multiples of 5 (5, 10, 15, 20, 25), and 25 = 5 × 5 counts twice" },
+      { in: "n = 100", out: "24  — 20 multiples of 5, plus 4 multiples of 25 that each give an extra 5" }
+    ],
+    constraints: [
+      "0 ≤ n ≤ 10^4",
+      "Return a single non-negative integer.",
+      "Do not compute n! itself. Aim for O(log n) time and O(1) space."
+    ],
+    whyItMatters: "This is the habit of answering a question about a huge object by counting the one ingredient that controls it. A trailing zero is a factor of 10, and 10 = 2 × 5. A factorial has far more factors of 2 than of 5 (every other number is even, only every fifth is a multiple of 5), so the number of 5s decides how many 10s you can build. Once you see that, a 158-digit number turns into a few divisions.\n\nThe second step is easy to miss: 25 contributes two fives, 125 contributes three, and so on. Counting multiples of 5, then of 25, then of 125 catches every extra factor exactly once. The same layered-counting trick (Legendre's formula) gives the power of any prime in n!, and the bottleneck idea shows up anywhere a result is limited by its scarcest input.",
+    hint: "A zero at the end means a factor of 10, and 10 = 2 × 5. Which of those two factors is rarer among 1..n? Count that one, and remember that some numbers contain it more than once.",
+    solution: {
+      lang: "javascript",
+      code: "function trailingZeroes(n) {\n  // Every trailing zero is a factor of 10 = 2 × 5.\n  // Twos are everywhere; fives are the bottleneck. Count the fives.\n  let count = 0;\n  while (n >= 5) {\n    n = Math.floor(n / 5);  // multiples of 5, then of 25, then of 125, ...\n    count += n;\n  }\n  return count;\n}\n",
+      notes: "O(log₅ n) time, O(1) space.\n\nWhy it works: the number of trailing zeros of n! is the number of times 10 divides it, which is min(number of 2s, number of 5s) in its prime factorisation. There are always at least as many 2s as 5s, so the answer is the number of 5s. Multiples of 5 give one each, multiples of 25 give one more, multiples of 125 one more again: ⌊n/5⌋ + ⌊n/25⌋ + ⌊n/125⌋ + … Dividing n by 5 repeatedly produces exactly those terms.\n\nTrace of n = 10 → 2:\n• n = ⌊10/5⌋ = 2, count = 2\n• 2 < 5, stop. Answer 2 ✓ (10! = 3628800)\n\nTrace of n = 25 → 6:\n• n = ⌊25/5⌋ = 5, count = 5\n• n = ⌊5/5⌋ = 1, count = 6\n• 1 < 5, stop. Answer 6 ✓\n\nTrace of n = 100 → 24:\n• n = ⌊100/5⌋ = 20, count = 20\n• n = ⌊20/5⌋ = 4, count = 24\n• 4 < 5, stop. Answer 24 ✓\n\nEdge case: n = 0 to 4 gives 0, since 0! through 4! are 1, 1, 2, 6, 24."
+    }
+  },
+  {
     id: "the-last-sighting",
     date: "2026-11-05",
     title: "The Last Sighting",
