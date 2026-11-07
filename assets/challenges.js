@@ -22,6 +22,34 @@
  */
 window.CHALLENGES = [
   {
+    id: "strike-the-proud-digits",
+    date: "2026-11-07",
+    title: "Strike the Proud Digits",
+    blurb: "Cross out exactly k digits from a number to leave the smallest value you can. Trying every combination explodes fast. The trick is to look at what each digit sits next to.",
+    difficulty: "Medium",
+    minutes: 12,
+    tags: ["greedy","stacks","strings"],
+    prompt: "You're given a non-negative integer as a string of digits, num, and a number k. Remove exactly k digits (from anywhere) so that the digits left over, read in their original order, form the smallest possible number. Return it as a string with no leading zeros, or \"0\" if nothing is left.\n\nFor example, num = \"1432219\" and k = 3 gives \"1219\". You strike the 4, the 3, and one of the 2s.\n\nThe obvious approach is to try every way of choosing k digits to remove and keep the smallest result. That's correct, but for a 20-digit number with k = 10 there are already 184,756 choices, and it only gets worse.\n\nYou don't need to search. A number's size is decided from the left, so ask: which single digit, if removed, helps the most? Then ask it again.",
+    examples: [
+      { in: "num = \"1432219\", k = 3", out: "\"1219\"  — strike 4, 3, and the second 2" },
+      { in: "num = \"10200\", k = 1", out: "\"200\"  — strike the 1; \"0200\" loses its leading zero" },
+      { in: "num = \"12345\", k = 2", out: "\"123\"  — the digits only go up, so drop the last two" }
+    ],
+    constraints: [
+      "1 ≤ k ≤ num.length ≤ 10^5",
+      "num contains only the digits 0–9 and has no leading zeros (except \"0\" itself).",
+      "Return the result without leading zeros. If every digit is removed, or only zeros remain, return \"0\".",
+      "Aim for O(n) time."
+    ],
+    whyItMatters: "This is greedy reasoning where the local choice is easy to justify. Leftmost digits matter most, so the best single removal is the first digit that is bigger than the digit right after it. Removing it lets a smaller digit slide into a more important position. If no such digit exists, the digits never go down, and the last one is the least important. Repeat that k times and you have the answer.\n\nThe second turn is making it fast. Rescanning from the start after every removal is O(n·k). A stack does the same job in one pass: each new digit knocks off any bigger digits just before it, as long as you still have removals left. What remains on the stack never decreases from bottom to top. That pattern, called a monotonic stack, also answers 'next smaller element' questions, builds the smallest subsequence of distinct letters, and finds the largest rectangle in a histogram.",
+    hint: "Look at neighbouring pairs from the left. If a digit is bigger than the one right after it, removing it makes the number smaller in a more significant place than any removal further right could. Keep the kept digits on a stack, and let each new digit pop bigger ones off the top while you still have removals.",
+    solution: {
+      lang: "javascript",
+      code: "function removeKdigits(num, k) {\n  // Keep digits on a stack that never goes down from left to right.\n  const stack = [];\n  for (const d of num) {\n    // A bigger digit sitting just before a smaller one is the best one to strike.\n    while (k > 0 && stack.length && stack[stack.length - 1] > d) {\n      stack.pop();\n      k--;\n    }\n    stack.push(d);\n  }\n  // Still owe removals? The tail is non-decreasing, so drop from the end.\n  while (k > 0) {\n    stack.pop();\n    k--;\n  }\n  const out = stack.join(\"\").replace(/^0+/, \"\");  // strip leading zeros\n  return out || \"0\";\n}\n",
+      notes: "O(n) time: every digit is pushed once and popped at most once. O(n) space for the stack.\n\nWhy it's correct: compare two numbers of the same length from the left; the first place they differ decides which is smaller. If the digit at position i is bigger than the digit at i+1, deleting it puts the smaller digit into position i while leaving everything before it alone, which beats any deletion further right. If the digits never go down, deleting the last one is best. The stack applies that rule k times in a single pass.\n\nTrace of num = \"1432219\", k = 3 → \"1219\":\n• '1': stack empty, push. [1]\n• '4': 4 > 1, push. [1,4]\n• '3': 3 < 4, pop 4 (k=2). 3 > 1, push. [1,3]\n• '2': 2 < 3, pop 3 (k=1). 2 > 1, push. [1,2]\n• '2': equal, not smaller, push. [1,2,2]\n• '1': 1 < 2, pop 2 (k=0). No removals left, push. [1,2,1]\n• '9': push. [1,2,1,9]\n• k = 0, no leading zeros. Answer \"1219\" ✓\n\nTrace of num = \"10200\", k = 1 → \"200\":\n• '1': push. [1]\n• '0': 0 < 1, pop 1 (k=0). Push. [0]\n• '2', '0', '0': k is 0, push all. [0,2,0,0]\n• Join to \"0200\", strip the leading zero. Answer \"200\" ✓\n\nTrace of num = \"12345\", k = 2 → \"123\":\n• Every digit is bigger than the one before, so nothing is popped. [1,2,3,4,5], k still 2.\n• Pop two from the end. [1,2,3]. Answer \"123\" ✓\n\nEdge case: num = \"10\", k = 2 removes everything, so the answer is \"0\". num = \"10\", k = 1 leaves \"0\", which also returns \"0\"."
+    }
+  },
+  {
     id: "where-the-zeros-come-from",
     date: "2026-11-06",
     title: "Where the Zeros Come From",
