@@ -22,6 +22,34 @@
  */
 window.CHALLENGES = [
   {
+    id: "the-fulcrum",
+    date: "2026-11-08",
+    title: "The Fulcrum",
+    blurb: "Find the spot in an array where everything on the left weighs exactly as much as everything on the right. Re-adding both sides at every index is slow. One number you already know makes it easy.",
+    difficulty: "Easy",
+    minutes: 8,
+    tags: ["prefix-sum","arrays"],
+    prompt: "You're given an array of integers, nums. A fulcrum is an index i where the sum of all elements strictly to the left of i equals the sum of all elements strictly to the right of i. The element at i itself belongs to neither side. If one side is empty, its sum is 0.\n\nReturn the leftmost fulcrum index, or -1 if there isn't one.\n\nFor example, in [1, 7, 3, 6, 5, 6] the answer is 3: to the left of the 6 sit 1 + 7 + 3 = 11, and to the right sit 5 + 6 = 11.\n\nThe obvious approach is to stand at each index, add up everything on the left, add up everything on the right, and compare. That's correct, but it re-adds the same numbers over and over and takes O(n²) time.\n\nYou can do it in two quick passes. Before you start walking, what single number could you compute that would tell you the right side's sum the moment you know the left side's?",
+    examples: [
+      { in: "nums = [1, 7, 3, 6, 5, 6]", out: "3  — left 1 + 7 + 3 = 11, right 5 + 6 = 11" },
+      { in: "nums = [2, 1, -1]", out: "0  — nothing on the left (0), and 1 + (-1) = 0 on the right" },
+      { in: "nums = [1, 2, 3]", out: "-1  — the splits give 0 vs 5, 1 vs 3, and 3 vs 0; none balance" }
+    ],
+    constraints: [
+      "1 ≤ nums.length ≤ 10^4",
+      "-1000 ≤ nums[i] ≤ 1000 (values can be negative or zero)",
+      "If several indices balance, return the smallest one.",
+      "Aim for O(n) time and O(1) extra space."
+    ],
+    whyItMatters: "This is the running-total idea in its simplest form. Once you know the total of the whole array, the left sum and the current element pin down the right sum: right = total − left − nums[i]. You never need to add up the right side at all. You just keep one running total as you walk, and each index becomes a single subtraction and comparison.\n\nIt's a good reminder that 'sum of a stretch' questions rarely need the stretch summed again. Keep a running total and subtract. The same move answers range-sum queries in O(1), counts subarrays that add up to k (with a hash map of earlier totals), and splits an array into equal halves. Watch the negatives in the second example: with negative numbers you can't stop early just because the left side has 'got too big'. You have to check every index.",
+    hint: "Add up the whole array first. Then walk left to right, keeping a running sum of what you've passed. At index i, the right side is whatever remains of the total once you take away the left sum and nums[i].",
+    solution: {
+      lang: "javascript",
+      code: "function findFulcrum(nums) {\n  // One pass to learn the total weight on the beam.\n  let total = 0;\n  for (const x of nums) total += x;\n\n  // Second pass: carry the left sum; the right sum falls out by subtraction.\n  let left = 0;\n  for (let i = 0; i < nums.length; i++) {\n    const right = total - left - nums[i];\n    if (left === right) return i;  // first match is the leftmost\n    left += nums[i];\n  }\n  return -1;\n}\n",
+      notes: "O(n) time (two passes), O(1) extra space.\n\nWhy it works: the whole array is left side + nums[i] + right side, so right = total − left − nums[i]. Keeping a running left sum gives you both sides at every index for one subtraction each. Scanning from the left and returning on the first match gives the leftmost fulcrum.\n\nTrace of [1, 7, 3, 6, 5, 6], total = 28 → 3:\n• i=0: left 0, right 28 − 0 − 1 = 27. No. left becomes 1.\n• i=1: left 1, right 28 − 1 − 7 = 20. No. left becomes 8.\n• i=2: left 8, right 28 − 8 − 3 = 17. No. left becomes 11.\n• i=3: left 11, right 28 − 11 − 6 = 11. Match. Answer 3 ✓\n\nTrace of [2, 1, -1], total = 2 → 0:\n• i=0: left 0, right 2 − 0 − 2 = 0. Match. Answer 0 ✓\n\nTrace of [1, 2, 3], total = 6 → -1:\n• i=0: left 0, right 6 − 0 − 1 = 5. No. left becomes 1.\n• i=1: left 1, right 6 − 1 − 2 = 3. No. left becomes 3.\n• i=2: left 3, right 6 − 3 − 3 = 0. No.\n• No index balanced. Answer -1 ✓\n\nEdge case: a single-element array like [5] always returns 0, because both sides are empty and 0 = 0."
+    }
+  },
+  {
     id: "strike-the-proud-digits",
     date: "2026-11-07",
     title: "Strike the Proud Digits",
