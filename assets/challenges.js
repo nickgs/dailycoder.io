@@ -22,6 +22,34 @@
  */
 window.CHALLENGES = [
   {
+    id: "the-corner-lookout",
+    date: "2026-11-09",
+    title: "The Corner Lookout",
+    blurb: "Find a number in a grid whose rows and columns are both sorted. Binary searching every row works, but one corner of the grid lets you rule out a whole row or column with every look.",
+    difficulty: "Medium",
+    minutes: 10,
+    tags: ["matrices","two-pointers"],
+    prompt: "You're given a grid of integers with m rows and n columns. Every row is sorted in ascending order from left to right, and every column is sorted in ascending order from top to bottom. Given a target, return true if it appears anywhere in the grid, and false otherwise.\n\nHere is the grid used in all three examples:\n\n   1   4   7  11\n   2   5   8  12\n   3   6   9  16\n  10  13  14  17\n\nNote that this is not one long sorted list: 10 sits on the bottom row, below 3, yet it is smaller than 11 on the top row. So you can't flatten the grid and binary search it.\n\nThe obvious approach is to check every cell, which is O(m·n). Binary searching each row is better at O(m log n), but it still ignores the columns being sorted.\n\nYou can do it in O(m + n). Stand in the top-left corner and every neighbour is bigger, so a comparison tells you nothing about which way to go. Is there a corner where one step is always bigger and the other is always smaller?",
+    examples: [
+      { in: "grid above, target = 5", out: "true  — 11 → 7 → 4 → 5: left, left, down, found" },
+      { in: "grid above, target = 15", out: "false  — 11 → 12 → 16 → 9 → 14, then you'd step off the bottom edge" },
+      { in: "grid above, target = 10", out: "true  — 11 → 7 → 8 → 9 → 14 → 13 → 10, ending in the bottom-left corner" }
+    ],
+    constraints: [
+      "1 ≤ m, n ≤ 300",
+      "-10^9 ≤ grid[i][j], target ≤ 10^9",
+      "Each row is sorted ascending left to right; each column is sorted ascending top to bottom. Values may repeat.",
+      "Aim for O(m + n) time and O(1) extra space."
+    ],
+    whyItMatters: "The trick is picking a starting point where a single comparison has only one sensible answer. In the top-right corner, everything to your left in that row is smaller and everything below you in that column is bigger. If the current value is bigger than the target, nothing below it in that column can be the target either, so the whole column is ruled out and you step left. If it's smaller, nothing to its left in that row can work, so the whole row is ruled out and you step down. Each look discards a full row or column, so you can take at most m + n steps.\n\nThe bottom-left corner works just as well, for the same reason with the directions swapped. The top-left and bottom-right don't: from there both neighbours move the same way, and you're back to guessing. The same 'start where the comparison only points one way' idea is behind the two-pointer squeeze on a sorted array (pairs that sum to k), and with a counter added, the same walk counts how many cells are ≤ a value, which is the core step in finding the k-th smallest number in a sorted grid.",
+    hint: "Start at the top-right cell. Compare it with the target. If it's too big, which direction can't possibly contain the target any more? If it's too small, which one?",
+    solution: {
+      lang: "javascript",
+      code: "function searchGrid(grid, target) {\n  // Start top-right: left is always smaller, down is always bigger.\n  let row = 0;\n  let col = grid[0].length - 1;\n\n  while (row < grid.length && col >= 0) {\n    const here = grid[row][col];\n    if (here === target) return true;\n    if (here > target) {\n      col--;   // everything below here is even bigger: drop this column\n    } else {\n      row++;   // everything left of here is even smaller: drop this row\n    }\n  }\n  return false;  // walked off the grid without a match\n}\n",
+      notes: "O(m + n) time, O(1) extra space. Each step either moves left or moves down, and you can only do each at most n or m times before leaving the grid.\n\nWhy it's safe: at grid[row][col], the cells below it in that column are all ≥ it, and the cells to its left in that row are all ≤ it. Rows above and columns to the right have already been ruled out. So when the value is too big, the entire current column is too big and can be dropped. When it's too small, the entire current row is too small and can be dropped. You never skip a cell that could hold the target.\n\nTrace for target = 5 → true:\n• (0,3) = 11 > 5. Go left.\n• (0,2) = 7 > 5. Go left.\n• (0,1) = 4 < 5. Go down.\n• (1,1) = 5. Found ✓\n\nTrace for target = 15 → false:\n• (0,3) = 11 < 15. Go down.\n• (1,3) = 12 < 15. Go down.\n• (2,3) = 16 > 15. Go left.\n• (2,2) = 9 < 15. Go down.\n• (3,2) = 14 < 15. Go down, which leaves the grid. Not found ✓\n\nTrace for target = 10 → true:\n• (0,3) = 11 > 10. Go left.\n• (0,2) = 7 < 10. Go down.\n• (1,2) = 8 < 10. Go down.\n• (2,2) = 9 < 10. Go down.\n• (3,2) = 14 > 10. Go left.\n• (3,1) = 13 > 10. Go left.\n• (3,0) = 10. Found ✓\n\nStarting in the bottom-left corner works too: go up when the value is too big and right when it's too small."
+    }
+  },
+  {
     id: "the-fulcrum",
     date: "2026-11-08",
     title: "The Fulcrum",
