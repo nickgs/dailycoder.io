@@ -22,6 +22,33 @@
  */
 window.CHALLENGES = [
   {
+    id: "casting-out-nines",
+    date: "2026-11-10",
+    title: "Casting Out Nines",
+    blurb: "Add up a number's digits, then add up the digits of that, and keep going until one digit is left. You can loop until it settles, or you can know the answer before you start.",
+    difficulty: "Easy",
+    minutes: 8,
+    tags: ["math","number-theory"],
+    prompt: "You're given a non-negative integer n. Replace n with the sum of its digits, and repeat until only a single digit remains. Return that digit. (This final digit is called the digital root.)\n\nFor example, n = 38: 3 + 8 = 11, then 1 + 1 = 2. One digit left, so the answer is 2.\n\nThe obvious approach is to do exactly what the description says: split the number into digits, add them, and repeat while the result has more than one digit. That's correct and quick in practice.\n\nBut you can do it with no loop at all, in O(1). Try a few numbers by hand and compare each answer with the remainder the number leaves when divided by 9. Then ask why adding up the digits never changes that remainder.",
+    examples: [
+      { in: "n = 38", out: "2  — 3 + 8 = 11, then 1 + 1 = 2" },
+      { in: "n = 99999", out: "9  — 9 × 5 = 45, then 4 + 5 = 9 (not 0, even though 99999 is a multiple of 9)" },
+      { in: "n = 0", out: "0  — already a single digit" }
+    ],
+    constraints: [
+      "0 ≤ n ≤ 2^31 − 1",
+      "Return a single digit from 0 to 9.",
+      "Aim for O(1) time and O(1) space, with no loop and no recursion."
+    ],
+    whyItMatters: "This is the habit of looking for the quantity a process can't change. Since 10 = 9 + 1, every power of 10 leaves remainder 1 when divided by 9. So a number like 3·10 + 8 leaves the same remainder as 3 + 8. Adding up the digits keeps the remainder mod 9 exactly the same, every round. The process has to stop at a single digit, and only one digit from 1 to 9 has the right remainder. So you know where it ends before you take a step.\n\nThe one trap is the 9s. A multiple of 9 has remainder 0, but its digit sum never becomes 0 (a positive number's digits can't all be zero), so it lands on 9. Bookkeepers used this as 'casting out nines' to check long arithmetic by hand for centuries. The same idea of tracking what an operation preserves (an invariant) also explains the divisibility-by-3 rule, checksum digits on ISBNs and card numbers, and why some puzzles are impossible because of a parity argument.",
+    hint: "Work out the answer for 10 through 20 and line each one up against n % 9. What's different about 18? Then write 38 as 3 × 10 + 8 and ask what 10 is, mod 9.",
+    solution: {
+      lang: "javascript",
+      code: "function digitalRoot(n) {\n  // 10 ≡ 1 (mod 9), so a number and its digit sum leave the\n  // same remainder mod 9. Every round of summing keeps n % 9 fixed.\n  if (n === 0) return 0;\n  // The process ends on a digit from 1 to 9 with that same remainder.\n  // Remainder 0 must therefore end on 9, not 0.\n  return 1 + (n - 1) % 9;\n}\n",
+      notes: "O(1) time, O(1) space.\n\nWhy it works: write n = d_k·10^k + … + d_1·10 + d_0. Every 10^i leaves remainder 1 when divided by 9, so n leaves the same remainder as d_k + … + d_1 + d_0. Each round of digit-summing therefore keeps n mod 9 unchanged. For n > 0 the digit sum is always positive, so the process ends on one of 1..9, and exactly one of those has the right remainder: n % 9 itself, or 9 when n % 9 is 0. The expression 1 + (n − 1) % 9 covers both cases at once.\n\nTrace of n = 38 → 2:\n• 37 % 9 = 1 (since 36 = 4 × 9), so 1 + 1 = 2 ✓\n• Check by hand: 3 + 8 = 11, 1 + 1 = 2.\n\nTrace of n = 99999 → 9:\n• 99999 = 9 × 11111, so 99998 % 9 = 8, and 1 + 8 = 9 ✓\n• Check by hand: 9 + 9 + 9 + 9 + 9 = 45, 4 + 5 = 9.\n\nTrace of n = 0 → 0:\n• Handled by the early return. Answer 0 ✓\n\nThe straightforward loop also works and is a fine first answer: while (n > 9) { let s = 0; while (n > 0) { s += n % 10; n = Math.floor(n / 10); } n = s; } return n;. For any 32-bit n it finishes in at most three rounds, because the digit sum of a 10-digit number is at most 90."
+    }
+  },
+  {
     id: "the-corner-lookout",
     date: "2026-11-09",
     title: "The Corner Lookout",
