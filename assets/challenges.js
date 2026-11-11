@@ -22,6 +22,34 @@
  */
 window.CHALLENGES = [
   {
+    id: "the-next-arrangement",
+    date: "2026-11-11",
+    title: "The Next Arrangement",
+    blurb: "List every ordering of some numbers in dictionary order. Given one ordering, find the one right after it, without listing anything. Three moves, all done in place.",
+    difficulty: "Medium",
+    minutes: 12,
+    tags: ["arrays","two-pointers"],
+    prompt: "You're given an array of integers nums. Picture every possible rearrangement of those same values, sorted in dictionary order: compare the first position, then the second if the first is tied, and so on. Rearrange nums in place into the arrangement that comes right after it in that list. If nums is already the last (largest) arrangement, wrap around to the first one, which is the values sorted in ascending order.\n\nFor [1, 2, 3], the full list is 123, 132, 213, 231, 312, 321. So the next arrangement after [1, 2, 3] is [1, 3, 2], and the next after [3, 2, 1] wraps back to [1, 2, 3].\n\nA handy way to think about it: treat the array as the digits of a number. You want the smallest number bigger than it that uses exactly the same digits.\n\nThe obvious approach is to generate every arrangement, sort them, and find the one after nums. That's O(n!·n), hopeless past a dozen elements.\n\nYou can do it in O(n) time and O(1) extra space. Start from the right end and look at the tail. When can a tail not be rearranged into anything bigger? Find the first spot where that stops being true.",
+    examples: [
+      { in: "nums = [1, 2, 3]", out: "[1, 3, 2]  — pivot is 2 (it's smaller than the 3 after it); swap with 3; the tail [2] is already in order" },
+      { in: "nums = [2, 4, 3, 1]", out: "[3, 1, 2, 4]  — tail [4, 3, 1] is descending, so the pivot is 2; swap it with 3 to get [3, 4, 2, 1]; reverse the tail to [1, 2, 4]" },
+      { in: "nums = [3, 2, 1]", out: "[1, 2, 3]  — the whole array is descending, so there's no pivot: it's the last arrangement, reverse it all" }
+    ],
+    constraints: [
+      "1 ≤ nums.length ≤ 100",
+      "0 ≤ nums[i] ≤ 100. Values may repeat; repeated values don't create extra arrangements.",
+      "Modify nums in place, using O(1) extra space.",
+      "Aim for O(n) time."
+    ],
+    whyItMatters: "This is the habit of asking which part of the input is already as big as it can get. A tail that's in descending order is the largest arrangement of its values, so no shuffling inside it can help. The change has to happen just to the left of it, at the pivot: the first element (reading right to left) that is smaller than the one after it.\n\nOnce you've found the pivot, every remaining choice is about making the increase as small as possible. Bump the pivot up by the smallest amount available: swap it with the smallest value in the tail that's still bigger than it. Then make everything after it as small as possible, which means ascending order. The nice turn is that after the swap the tail is still descending, so 'sort it' is really just 'reverse it', and the whole thing stays O(n).\n\nThis is how C++'s std::next_permutation works. It lets you step through all orderings one at a time with no recursion and no extra memory, and it handles duplicate values correctly for free. The same shape (find the rightmost place that can still grow, increase it by the least possible, reset everything after it to the minimum) is exactly how you add 1 to a number, and it shows up again when generating combinations and subsets in order.",
+    hint: "Scan from the right while the values keep getting bigger (or stay equal). The first value that breaks that pattern is the one that has to change. What's the smallest value to its right that you could swap in to make it bigger?",
+    solution: {
+      lang: "javascript",
+      code: "function nextPermutation(nums) {\n  // 1. Find the pivot: the rightmost i with nums[i] < nums[i + 1].\n  //    Everything to its right is a descending run, already maxed out.\n  let i = nums.length - 2;\n  while (i >= 0 && nums[i] >= nums[i + 1]) i--;\n\n  if (i >= 0) {\n    // 2. Swap the pivot with the smallest value in the run that beats it.\n    //    The run is descending, so that's the rightmost one bigger than it.\n    let j = nums.length - 1;\n    while (nums[j] <= nums[i]) j--;\n    [nums[i], nums[j]] = [nums[j], nums[i]];\n  }\n\n  // 3. The run is still descending. Reverse it so it's as small as possible.\n  //    (If there was no pivot, i = -1 and this reverses the whole array.)\n  let lo = i + 1, hi = nums.length - 1;\n  while (lo < hi) {\n    [nums[lo], nums[hi]] = [nums[hi], nums[lo]];\n    lo++;\n    hi--;\n  }\n  return nums;\n}\n",
+      notes: "O(n) time, O(1) extra space. Each of the three steps is a single pass over at most n elements.\n\nWhy it works: if the tail from i + 1 to the end is descending, it's already the largest arrangement of its values, so the next arrangement must change position i. To make the smallest possible increase there, swap in the smallest tail value that's bigger than nums[i]. Because the tail is descending, that's the rightmost value bigger than it. The swap keeps the tail descending (the value moved in fits in the same spot in the order), so reversing it gives ascending order, the smallest arrangement of the tail. Using >= and <= in the scans skips over equal values, which is what makes duplicates work.\n\nTrace of [1, 2, 3] → [1, 3, 2]:\n• Pivot scan: i = 1, nums[1] = 2 < nums[2] = 3, so the pivot is at i = 1.\n• Swap scan: j = 2, 3 > 2, so swap → [1, 3, 2].\n• Reverse the tail from index 2: one element, nothing to do. Result [1, 3, 2] ✓\n\nTrace of [2, 4, 3, 1] → [3, 1, 2, 4]:\n• Pivot scan: i = 2, 3 ≥ 1, move left; i = 1, 4 ≥ 3, move left; i = 0, 2 < 4, so the pivot is at i = 0.\n• Swap scan: j = 3, 1 ≤ 2, move left; j = 2, 3 > 2, so swap → [3, 4, 2, 1].\n• Reverse indices 1..3: [4, 2, 1] → [1, 2, 4]. Result [3, 1, 2, 4] ✓\n• Check: the arrangements starting with 2 end at 2431, so the next is the smallest one starting with 3, which is 3124.\n\nTrace of [3, 2, 1] → [1, 2, 3]:\n• Pivot scan: 2 ≥ 1, 3 ≥ 2, i falls to −1. No pivot, so skip the swap.\n• Reverse indices 0..2 → [1, 2, 3] ✓\n\nWith duplicates, [1, 1, 5] → [1, 5, 1]: the pivot is the 1 at index 1, it swaps with 5, and the one-element tail needs no reversing."
+    }
+  },
+  {
     id: "casting-out-nines",
     date: "2026-11-10",
     title: "Casting Out Nines",
