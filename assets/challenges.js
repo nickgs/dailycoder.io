@@ -22,6 +22,46 @@
  */
 window.CHALLENGES = [
   {
+    "id": "the-floor-of-the-root",
+    "date": "2026-11-12",
+    "title": "The Floor of the Root",
+    "blurb": "Find the whole-number part of a square root with no sqrt button. There's no array here, but you can still binary search: the thing you're searching is the answer itself.",
+    "difficulty": "Easy",
+    "minutes": 8,
+    "tags": [
+      "binary-search",
+      "math"
+    ],
+    "prompt": "You're given a non-negative integer x. Return the square root of x rounded down to the nearest integer. In other words, return the largest integer r such that r × r ≤ x.\n\nYou may not use a built-in square root or exponent function (no Math.sqrt, no x ** 0.5).\n\nFor example, the square root of 8 is about 2.83, so the answer is 2. The square root of 49 is exactly 7, so the answer is 7.\n\nThe obvious approach is to try r = 0, 1, 2, 3, … and stop just before r × r goes past x. That works, but for x near two billion it takes about 46,000 steps.\n\nYou can do it in O(log x) steps. There's no sorted array in sight, so ask a different question: as r grows, does 'r × r ≤ x' ever switch from false back to true?",
+    "examples": [
+      {
+        "in": "x = 8",
+        "out": "2  — 2 × 2 = 4 ≤ 8, but 3 × 3 = 9 > 8"
+      },
+      {
+        "in": "x = 49",
+        "out": "7  — 7 × 7 = 49 exactly, and 8 × 8 = 64 is too big"
+      },
+      {
+        "in": "x = 0",
+        "out": "0  — 0 × 0 = 0 ≤ 0, and 1 × 1 = 1 is too big"
+      }
+    ],
+    "constraints": [
+      "0 ≤ x ≤ 2^31 − 1",
+      "Do not use a built-in square root or power function.",
+      "Watch out: mid × mid can overflow a 32-bit integer when mid is large.",
+      "Aim for O(log x) time and O(1) space."
+    ],
+    "whyItMatters": "This is the habit of binary searching over answers instead of over data. Binary search doesn't need an array; it needs a yes/no question whose answer flips exactly once. Here the question is 'is r × r ≤ x?'. It's yes for every r from 0 up to the answer and no for every r after it. Find the last yes and you're done.\n\nOnce you see that, the problem is the same shape as finding the last true value in a sorted list of booleans: [true, true, true, false, false, …]. The same trick solves 'what's the smallest speed that finishes in time', 'what's the fewest days to ship everything', and a whole family of 'minimum capacity' problems where you can easily check a guess but can't easily compute the answer directly.\n\nThere's a second small lesson in the overflow constraint: mid × mid can be bigger than any 32-bit integer, but mid ≤ x / mid asks the same question without ever producing a big number.",
+    "hint": "The answer is somewhere between 0 and x. Pick the middle value m and check whether m × m ≤ x. If it is, the answer is m or bigger. If it isn't, the answer is smaller than m. Which half can you throw away each time?",
+    "solution": {
+      "lang": "javascript",
+      "code": "function mySqrt(x) {\n  // The answer lives somewhere in [0, x]. Shrink that range until one value is left.\n  let lo = 0, hi = x;\n  while (lo < hi) {\n    // Round the midpoint UP so that lo = mid always makes progress.\n    const mid = Math.ceil((lo + hi) / 2);\n    // mid * mid <= x, written as a division so it can't overflow.\n    if (mid <= Math.floor(x / mid)) {\n      lo = mid;      // mid is a valid floor, and maybe something bigger is too\n    } else {\n      hi = mid - 1;  // mid is too big, and so is everything above it\n    }\n  }\n  return lo;\n}\n",
+      "notes": "O(log x) time, O(1) space. The range [lo, hi] always contains the answer, and each step cuts it roughly in half.\n\nWhy round the midpoint up: when lo and hi are next to each other, a rounded-down mid equals lo, and 'lo = mid' would loop forever. Rounding up means mid is always greater than lo, so both branches shrink the range. Because mid is at least 1, the division x / mid is always safe.\n\nWhy the division: 'mid ≤ floor(x / mid)' is true exactly when mid × mid ≤ x, for positive integers. It keeps every value small, so it can't overflow in languages with fixed-size integers.\n\nTrace of x = 8 → 2:\n• lo = 0, hi = 8. mid = 4: is 4 ≤ floor(8 / 4) = 2? No → hi = 3.\n• lo = 0, hi = 3. mid = 2: is 2 ≤ floor(8 / 2) = 4? Yes → lo = 2.\n• lo = 2, hi = 3. mid = 3: is 3 ≤ floor(8 / 3) = 2? No → hi = 2.\n• lo = hi = 2. Return 2 ✓\n\nTrace of x = 49 → 7:\n• lo = 0, hi = 49. mid = 25: 25 ≤ 1? No → hi = 24.\n• mid = 12: 12 ≤ 4? No → hi = 11.\n• mid = 6: 6 ≤ 8? Yes → lo = 6.\n• lo = 6, hi = 11. mid = 9: 9 ≤ 5? No → hi = 8.\n• lo = 6, hi = 8. mid = 7: 7 ≤ 7? Yes → lo = 7.\n• lo = 7, hi = 8. mid = 8: 8 ≤ 6? No → hi = 7.\n• lo = hi = 7. Return 7 ✓\n\nTrace of x = 0 → 0: lo = hi = 0, so the loop never runs. Return 0 ✓\n\nA fun alternative is Newton's method: start with r = x and repeat r = floor((r + floor(x / r)) / 2) while r × r > x. It converges even faster, but the binary search is easier to prove correct by hand."
+    }
+  },
+  {
     id: "the-next-arrangement",
     date: "2026-11-11",
     title: "The Next Arrangement",
