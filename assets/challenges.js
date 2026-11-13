@@ -22,6 +22,49 @@
  */
 window.CHALLENGES = [
   {
+    "id": "the-nested-echo",
+    "date": "2026-11-13",
+    "title": "The Nested Echo",
+    "blurb": "Unpack a compressed string where brackets can hide inside brackets. The trick is to notice that what's inside every pair of brackets is the same problem again, only smaller.",
+    "difficulty": "Medium",
+    "minutes": 12,
+    "tags": [
+      "recursion",
+      "strings",
+      "stacks"
+    ],
+    "prompt": "A string has been compressed with one rule: k[text] means \"text, repeated k times.\" So 3[ab] stands for ababab. Plain letters outside brackets are copied as they are.\n\nThe catch is that the text inside the brackets can use the same rule. 2[a3[b]] means a3[b] twice, and a3[b] means abbb, so the whole thing is abbbabbb.\n\nGiven an encoded string s, return the fully decoded string.\n\nThe first idea is often to find the innermost brackets, expand them, and repeat until no brackets are left. That does work, but every rewrite copies the whole string again, and it's easy to get lost in the bookkeeping.\n\nTry a different view instead. Look at what sits between a '[' and its matching ']'. It's an encoded string that follows the same rules as the whole input, only shorter. If you already had a function that decodes a whole string, what could you do with it here?",
+    "examples": [
+      {
+        "in": "s = \"3[a]2[bc]\"",
+        "out": "\"aaabcbc\"  — 3[a] is aaa, 2[bc] is bcbc, written side by side"
+      },
+      {
+        "in": "s = \"3[a2[c]]\"",
+        "out": "\"accaccacc\"  — the inner 2[c] is cc, so a2[c] is acc, and three of those is accaccacc"
+      },
+      {
+        "in": "s = \"2[ab3[x]]y\"",
+        "out": "\"abxxxabxxxy\"  — ab3[x] is abxxx, twice is abxxxabxxx, then the plain y on the end"
+      }
+    ],
+    "constraints": [
+      "1 ≤ s.length ≤ 30",
+      "s contains only lowercase letters, digits, '[' and ']'.",
+      "s is always valid: every number is followed by '[', brackets are balanced, and digits only appear as repeat counts.",
+      "Repeat counts are between 1 and 300, so a count can have more than one digit (12[a] is twelve a's).",
+      "The decoded string has at most 10^5 characters.",
+      "Aim for one left-to-right pass over s."
+    ],
+    "whyItMatters": "This puzzle trains you to spot self-similarity: a piece of the input that has exactly the same shape as the whole input. Once you see it, you can trust recursion. You write the function as if it already works, call it on the inner piece, and only handle one level of the structure yourself. Parsers for JSON, arithmetic expressions and HTML all work this way.\n\nThe other half of the lesson is that recursion and an explicit stack are the same tool. The call stack remembers where you were and what count you were holding when you went down into a bracket. If you'd rather not recurse, you can push (string so far, count) when you see '[' and pop when you see ']', and you'll get exactly the same answer. Being able to switch between the two views is a skill that pays off every time recursion gets too deep for the language's limits.",
+    "hint": "Write decode(i) that reads from position i and stops when it reaches a ']' or the end of the string. When you read a number followed by '[', call decode on what comes next, repeat whatever it returns that many times, then step past the ']'. Remember a count like 12 is two digits: build it up as k = k × 10 + digit.",
+    "solution": {
+      "lang": "javascript",
+      "code": "function decodeString(s) {\n  let i = 0; // shared cursor into s\n\n  // Decode from position i until the end of s or an unmatched ']'.\n  function parse() {\n    let out = \"\";\n    while (i < s.length && s[i] !== \"]\") {\n      if (s[i] >= \"0\" && s[i] <= \"9\") {\n        let k = 0;\n        while (s[i] >= \"0\" && s[i] <= \"9\") {\n          k = k * 10 + (s.charCodeAt(i) - 48); // counts can be multi-digit\n          i++;\n        }\n        i++;                  // skip '['\n        const inner = parse(); // same problem, one level deeper\n        i++;                  // skip the matching ']'\n        out += inner.repeat(k);\n      } else {\n        out += s[i];\n        i++;\n      }\n    }\n    return out;\n  }\n\n  return parse();\n}\n",
+      "notes": "One shared index i moves left to right over s, and parse() decodes until it reaches a ']' or the end. A letter is copied straight across. A number is read in full (so 12 becomes twelve, not one and two), then we step over '[', call parse() for the inner part, step over the matching ']', and append the inner result k times. Every character is read exactly once. Space is O(depth) for the call stack, plus the output.\n\nTrace example 2: s = \"3[a2[c]]\".\n• parse() at depth 0 reads 3, skips '[', and calls parse() at depth 1.\n• Depth 1 copies 'a', reads 2, skips '[', and calls parse() at depth 2.\n• Depth 2 copies 'c', sees ']' and returns \"c\".\n• Depth 1 skips that ']' and appends \"c\" twice, giving \"acc\". It then sees ']' and returns \"acc\".\n• Depth 0 skips that ']' and appends \"acc\" three times: \"accaccacc\". ✓\n\nTrace example 3: s = \"2[ab3[x]]y\".\n• Depth 0 reads 2 and descends. Depth 1 copies 'a' and 'b', reads 3, and descends. Depth 2 copies 'x' and returns \"x\".\n• Depth 1 builds \"ab\" + \"xxx\" = \"abxxx\" and returns at the second ']'.\n• Depth 0 appends \"abxxx\" twice, then copies 'y': \"abxxxabxxxy\". ✓\n\nThe stack version does the same thing without recursion. On '[', push the current string and count, then start a new empty string. On ']', pop and set current = saved + current.repeat(count). The pushed pairs are exactly what the call stack is holding in the recursive version.\n\nCommon slip: reading only one digit for the count. That makes 12[a] come out as 2[a] with a stray 1, so build the number up digit by digit."
+    }
+  },
+  {
     "id": "the-floor-of-the-root",
     "date": "2026-11-12",
     "title": "The Floor of the Root",
