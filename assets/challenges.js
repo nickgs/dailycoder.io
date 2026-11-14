@@ -22,6 +22,45 @@
  */
 window.CHALLENGES = [
   {
+    "id": "the-bottle-return",
+    "date": "2026-11-14",
+    "title": "The Bottle Return",
+    "blurb": "Drink, return the empties, drink again. You can simulate every trip to the counter, or notice what each trade actually costs you and get the answer in one line.",
+    "difficulty": "Easy",
+    "minutes": 8,
+    "tags": [
+      "math",
+      "simulation"
+    ],
+    "prompt": "You have n full bottles of soda. Drinking a bottle leaves you with one empty bottle. The corner shop runs a deal: hand over k empty bottles and they give you one full bottle.\n\nYou keep drinking and trading for as long as you can. How many bottles do you drink in total?\n\nSo n = 9, k = 3: drink 9, trade the 9 empties for 3 full bottles, drink those, trade 3 empties for 1 more, drink it. That's 9 + 3 + 1 = 13, and you're left holding one empty that nobody will take.\n\nThe obvious approach is to simulate the trips to the shop: keep a count of full and empty bottles, drink everything, trade what you can, carry the leftover empties forward, and repeat. That works, and it's worth doing once by hand. Keep track of the leftovers, though. Forgetting to carry them into the next round is the classic bug.\n\nThen look at a single trade from the point of view of your pile of empties. You hand over k of them and walk away with one full bottle, which becomes one empty bottle as soon as you drink it. How much smaller did your pile of empties get? And when exactly do the trades have to stop?",
+    "examples": [
+      {
+        "in": "n = 9, k = 3",
+        "out": "13  — drink 9; trade 9 empties for 3, drink them; trade 3 empties for 1, drink it. 9 + 3 + 1 = 13"
+      },
+      {
+        "in": "n = 15, k = 4",
+        "out": "19  — drink 15; trade 12 of the 15 empties for 3 (3 empties left over); drink 3, now 6 empties; trade 4 for 1 (2 left over); drink it, now 3 empties, not enough. 15 + 3 + 1 = 19"
+      },
+      {
+        "in": "n = 5, k = 6",
+        "out": "5  — you only ever have 5 empties, one short of a trade"
+      }
+    ],
+    "constraints": [
+      "1 ≤ n ≤ 100",
+      "2 ≤ k ≤ 100",
+      "You may only trade exactly k empties for one full bottle. No borrowing a bottle from the shop and paying it back later."
+    ],
+    "whyItMatters": "This is the habit of asking what one step of a process does to the quantity you care about, instead of replaying the whole process. Each trade swaps k empties for a bottle that comes back as one empty, so every trade costs you exactly k − 1 empties and earns you exactly one drink. The rounds, the leftovers and the order of the trades stop mattering. All you need to know is how many times you can pay k − 1 before you run out.\n\nThat's the core of an invariant argument: find something that changes by the same fixed amount on every move, and the number of moves falls out of a single division. The same reasoning counts the games in a knockout tournament (each game knocks out exactly one player, so n players means n − 1 games) and the cuts needed to break a chocolate bar into squares. The simulation is still worth keeping around, because it's how you check that the formula is right.",
+    "hint": "Stop thinking in rounds and just count empties. Once you've drunk the first n bottles you hold n empties. A trade takes k away, and drinking the new bottle gives one back, so each trade shrinks the pile by k − 1. You can trade as long as the pile still has at least k bottles, and the pile never drops below 1. How many times can you subtract k − 1 from n and still have at least 1 left?",
+    "solution": {
+      "lang": "javascript",
+      "code": "function bottlesDrunk(n, k) {\n  // Drinking the first n bottles leaves n empties.\n  // Each trade: give k empties, drink the new bottle, get 1 empty back.\n  // Net cost per trade is k - 1 empties, and each trade is one extra drink.\n  // A trade needs k empties, so the pile can never drop below 1.\n  // Trades possible = how many times k - 1 fits into n - 1.\n  const trades = Math.floor((n - 1) / (k - 1));\n  return n + trades;\n}\n",
+      "notes": "Check it against the examples: n = 9, k = 3 gives 9 + floor(8 / 2) = 13. n = 15, k = 4 gives 15 + floor(14 / 3) = 19. n = 5, k = 6 gives 5 + floor(4 / 5) = 5.\n\nWhy n − 1 and not n? A trade needs a pile of at least k, which leaves a pile of at least 1 afterwards. So the pile can't drop below 1, and one empty bottle is never available to spend. With n = 2, k = 2 you can trade once (2 empties for 1, drink it, 1 empty left) and the formula gives 2 + floor(1 / 1) = 3, which is right. Using floor(n / (k − 1)) would give 4.\n\nThe simulation runs in O(log n) rounds, since the number of bottles shrinks by a factor of about k each round, and the formula is O(1). Both are instant for these limits. The point of the formula is the reasoning behind it, not the speed. If you wrote the simulation, use it to test the formula over a range of n and k. They should agree everywhere."
+    }
+  },
+  {
     "id": "the-nested-echo",
     "date": "2026-11-13",
     "title": "The Nested Echo",
