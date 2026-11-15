@@ -22,6 +22,46 @@
  */
 window.CHALLENGES = [
   {
+    "id": "the-famous-stranger",
+    "date": "2026-11-15",
+    "title": "The Famous Stranger",
+    "blurb": "Everyone at the party knows the celebrity, and the celebrity knows nobody. You could quiz every guest about every other guest, but once you notice that every answer rules someone out, one question per guest is enough.",
+    "difficulty": "Medium",
+    "minutes": 12,
+    "tags": [
+      "graphs",
+      "logic"
+    ],
+    "prompt": "There are n guests at a party, numbered 0 to n − 1. A celebrity is a guest who knows nobody else at the party, but whom every other guest knows.\n\nYou can't see who knows whom. The only thing you can do is ask a question of the form knows(a, b), meaning \"does guest a know guest b?\", and get back yes or no. Knowing isn't mutual, so knows(a, b) and knows(b, a) can have different answers.\n\nFind the celebrity and return their number, or return −1 if there isn't one.\n\nIn the examples the answers are written as a grid: row a, column b is 1 if a knows b. The diagonal is always 1 (everyone knows themselves) and doesn't count.\n\nThe obvious approach is to check every guest in turn: does this person know anyone, and does everyone know them? That's about 2n questions per guest, so roughly 2n² in all. For a party of 100 that's 20,000 questions.\n\nTry to do it in at most 3(n − 1) questions. Start by thinking about a single question. Whatever the answer to knows(a, b) is, yes or no, what does it tell you about who can't be the celebrity?",
+    "examples": [
+      {
+        "in": "n = 3, knows = [[1,1,0], [0,1,0], [1,1,1]]",
+        "out": "1  — row 1 has no 1s apart from the diagonal, so guest 1 knows nobody, and column 1 is all 1s, so guests 0 and 2 both know 1"
+      },
+      {
+        "in": "n = 3, knows = [[1,0,1], [1,1,0], [0,1,1]]",
+        "out": "-1  — 0 knows 2, 1 knows 0 and 2 knows 1. Everyone knows somebody, so nobody can be the celebrity"
+      },
+      {
+        "in": "n = 4, knows = [[1,1,0,1], [0,1,0,1], [1,0,1,1], [0,0,0,1]]",
+        "out": "3  — guest 3 knows nobody, and 0, 1 and 2 all know 3. Guest 1 looks close (knows only 3) but fails twice over: 1 knows 3, and 2 doesn't know 1"
+      }
+    ],
+    "constraints": [
+      "1 ≤ n ≤ 100",
+      "knows(a, a) is always yes and doesn't count as knowing someone.",
+      "With n = 1 the single guest is the celebrity: there's nobody else for them to know, and nobody else who needs to know them.",
+      "Use at most 3(n − 1) calls to knows."
+    ],
+    "whyItMatters": "This is the habit of asking what a single comparison lets you throw away. Each question knows(a, b) rules out exactly one person, whatever the answer. If a knows b, then a knows somebody, so a isn't the celebrity. If a doesn't know b, then not everyone knows b, so b isn't the celebrity. n − 1 questions knock out n − 1 people and leave one candidate standing.\n\nThe second half of the lesson is that elimination only gives you a candidate, not an answer. Nobody ruled the survivor out, but nobody proved them right either, so you still have to check them. The same pattern of eliminate first, then verify shows up in the majority-vote trick (find the only possible winner in one pass, then count to confirm it) and in knockout-style searches for a maximum.",
+    "hint": "Keep one candidate, starting with guest 0. Walk through guests 1 to n − 1 and ask: does the candidate know this guest? If yes, the candidate is out and this guest becomes the new candidate. If no, this guest is out and the candidate stays. At the end only one person could still be the celebrity. What do you still need to check about them?",
+    "solution": {
+      "lang": "javascript",
+      "code": "function findCelebrity(n, knows) {\n  // knows(a, b) -> true if guest a knows guest b.\n\n  // Pass 1: every question eliminates one person.\n  let cand = 0;\n  for (let i = 1; i < n; i++) {\n    if (knows(cand, i)) {\n      cand = i; // cand knows someone, so cand is out\n    }\n    // otherwise cand doesn't know i, so i is out\n  }\n\n  // Pass 2: the survivor is only a candidate. Check them.\n  for (let j = 0; j < n; j++) {\n    if (j === cand) continue;\n    if (knows(cand, j) || !knows(j, cand)) return -1;\n  }\n  return cand;\n}\n\n// With a grid m like the ones in the examples:\n// findCelebrity(m.length, (a, b) => m[a][b] === 1)\n",
+      "notes": "Trace example 3: start with candidate 0. knows(0, 1) is yes, so 0 is out and 1 becomes the candidate. knows(1, 2) is no, so 2 is out. knows(1, 3) is yes, so 1 is out and 3 becomes the candidate. Then check 3: 3 knows none of 0, 1 and 2, and all three know 3, so the answer is 3.\n\nIn example 2 the first pass ends on candidate 2 (knows(0, 1) is no, then knows(0, 2) is yes). The check fails: knows(2, 0) is no, but knows(2, 1) is yes, so 2 knows somebody and the answer is −1. That's why the second pass matters: the first pass always produces a survivor, even when there's no celebrity.\n\nWhy the first pass can't lose the real celebrity: every elimination comes from an answer a celebrity could never produce. A celebrity never answers yes to knows(celebrity, x), and nobody answers no to knows(x, celebrity). So if a celebrity exists, they are the survivor.\n\nThere can't be two celebrities, either. If A and B were both celebrities, A would have to know B (everyone knows a celebrity) while also knowing nobody.\n\nQuestions used: n − 1 in the first pass and at most 2(n − 1) in the check, so at most 3(n − 1). Time is O(n) and extra space is O(1)."
+    }
+  },
+  {
     "id": "the-bottle-return",
     "date": "2026-11-14",
     "title": "The Bottle Return",
