@@ -22,6 +22,47 @@
  */
 window.CHALLENGES = [
   {
+    "id": "the-folded-tiles",
+    "date": "2026-11-16",
+    "title": "The Folded Tiles",
+    "blurb": "Build the longest palindrome you can from a bag of letter tiles. You don't have to find the palindrome, only its length, and once you think about what a palindrome looks like folded in half, the counting is almost all there is.",
+    "difficulty": "Easy",
+    "minutes": 8,
+    "tags": [
+      "hashing",
+      "greedy",
+      "strings"
+    ],
+    "prompt": "You tip a bag of letter tiles onto the table. The letters are given as a string s, one character per tile.\n\nUsing some or all of the tiles, you want to lay out the longest palindrome you can: a word that reads the same forwards and backwards, like level or abccba. It doesn't need to be a real word. You can use each tile at most once and leave any tiles you like in the bag.\n\nReturn the length of the longest palindrome you can build.\n\nThe tempting approach is to actually build palindromes: try arrangements, or grow one outwards from a middle letter and see how far you get. That's a lot of work for a question that only asks for a number.\n\nInstead, picture a finished palindrome folded in half down the middle. Every letter on the left lands on an identical letter on the right. What does that say about how many times each letter can appear? And what's the one place in a palindrome where a letter doesn't need a partner?",
+    "examples": [
+      {
+        "in": "s = \"banana\"",
+        "out": "5  — b ×1, a ×3, n ×2. Pair up two of the a's and both n's, then put the third a in the middle: \"anana\" (or \"naaan\"). The b has no partner and is left over"
+      },
+      {
+        "in": "s = \"aabbcc\"",
+        "out": "6  — every letter comes in a pair, so every tile gets used: \"abccba\". There's nothing to put in the middle, and nothing needs to be"
+      },
+      {
+        "in": "s = \"xyz\"",
+        "out": "1  — no letter has a partner, so the best you can do is a single tile on its own, like \"x\""
+      }
+    ],
+    "constraints": [
+      "1 ≤ s.length ≤ 2000",
+      "s contains only lowercase English letters.",
+      "You only need the length, not the palindrome itself.",
+      "Aim for one pass over s and O(1) extra space (there are only 26 possible letters)."
+    ],
+    "whyItMatters": "This is the habit of describing what a valid answer looks like before you try to build one. Fold a palindrome in half and every letter is matched with a twin, except possibly one letter sitting right on the fold. Once you've said that out loud, the search disappears: the order of the letters doesn't matter at all, only how many of each you have. Take every pair you can, and add one extra tile for the middle if anything is left over.\n\nIt's also a small greedy argument you can actually prove. Using a pair never hurts, because it adds 2 to the length and can always go on the outside. So the best answer uses every pair, and the only choice left is whether the centre is filled. The same reasoning, about pairs and at most one odd one out, answers 'can these letters be rearranged into a palindrome?' and shows up whenever a symmetric structure has a single middle position.",
+    "hint": "Count how many times each letter appears. A letter that appears c times can contribute c tiles if c is even, or c − 1 if c is odd, because one tile is left without a partner. Add those up. Then ask: was any tile left over? If so, one of them can go in the very centre.",
+    "solution": {
+      "lang": "javascript",
+      "code": "function longestPalindrome(s) {\n  // Count every letter.\n  const count = new Map();\n  for (const ch of s) count.set(ch, (count.get(ch) || 0) + 1);\n\n  // Each letter with an odd count has exactly one tile that can't be paired.\n  let odd = 0;\n  for (const c of count.values()) {\n    if (c % 2 === 1) odd++;\n  }\n\n  // Use every tile except the unpaired ones...\n  // ...then put one unpaired tile back as the centre, if there is one.\n  return odd === 0 ? s.length : s.length - odd + 1;\n}\n",
+      "notes": "Rather than adding up the even parts letter by letter, it's easier to start from all the tiles and take away the ones that can't be used. Each letter with an odd count has exactly one tile without a partner, so there are odd unpaired tiles in total. All the rest pair up. If odd is at least 1, one of the unpaired tiles goes back in as the centre.\n\nTrace example 1, s = \"banana\": the counts are b 1, a 3, n 2. b and a are odd, so odd = 2. That gives 6 − 2 + 1 = 5 ✓. Notice that a, with an odd count of 3, still contributes 2 tiles to the sides. A common slip is to throw away every letter with an odd count, which would give just 2 (the n's) + 1 = 3.\n\nTrace example 2, s = \"aabbcc\": every count is 2, so odd = 0 and the answer is the full 6 ✓. With odd = 0 there's no tile for the centre, which is why the + 1 only applies when odd > 0.\n\nTrace example 3, s = \"xyz\": every count is 1, so odd = 3 and the answer is 3 − 3 + 1 = 1 ✓.\n\nOne more check, s = \"abccccdd\": a 1, b 1, c 4, d 2, so odd = 2 and the answer is 8 − 2 + 1 = 7, for example \"dccaccd\".\n\nO(n) time. The Map holds at most 26 entries, so the extra space is O(1). A one-pass variant keeps a set of letters seen an odd number of times so far: add a letter when you see it, remove it when you see it again (that completes a pair, so add 2 to the answer). At the end, add 1 if the set isn't empty."
+    }
+  },
+  {
     "id": "the-famous-stranger",
     "date": "2026-11-15",
     "title": "The Famous Stranger",
