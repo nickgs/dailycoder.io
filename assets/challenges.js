@@ -22,6 +22,47 @@
  */
 window.CHALLENGES = [
   {
+    "id": "the-three-stripes",
+    "date": "2026-11-17",
+    "title": "The Three Stripes",
+    "blurb": "Sort a row of red, white and blue marbles into a flag in a single pass, swapping in place. Counting them first is easy; the clever part is knowing when a swapped-in marble still needs a second look.",
+    "difficulty": "Medium",
+    "minutes": 12,
+    "tags": [
+      "two-pointers",
+      "arrays",
+      "sorting"
+    ],
+    "prompt": "A row of marbles sits in a long tray. Each one is red, white or blue, written as 0, 1 and 2, and the row is given as an array nums.\n\nRearrange the marbles in place so that all the reds come first, then all the whites, then all the blues, like the stripes of a flag. Return the same array, now sorted.\n\nYou may only swap marbles that are already in the tray: no second array, no built-in sort. And you get one pass: walk along the tray once, deciding what to do with each marble as you reach it.\n\nThe safe approach is to count the 0s, 1s and 2s, then write them back in order. That works, but it's two passes, and it only works because the values are plain numbers. If the marbles were records carrying other data, rewriting them from counts would lose it.\n\nInstead, think of the tray as four zones: a finished red stripe on the left, a finished blue stripe on the right, a white stripe growing behind your finger, and an unknown stretch you haven't looked at yet. Every step should shrink the unknown stretch by one. The question is what to do with each colour, and when a marble you just swapped into place still needs to be looked at.",
+    "examples": [
+      {
+        "in": "nums = [2, 0, 2, 1, 1, 0]",
+        "out": "[0, 0, 1, 1, 2, 2]  — the first 2 is swapped to the far end, and the 0 that comes back from there gets looked at before moving on"
+      },
+      {
+        "in": "nums = [2, 0, 1]",
+        "out": "[0, 1, 2]  — the 2 goes to the end, bringing the 1 to the front; the 1 stays put, then the 0 swaps places with it"
+      },
+      {
+        "in": "nums = [1, 0, 1, 2, 0]",
+        "out": "[0, 0, 1, 1, 2]  — each 0 jumps over the whites already collected; the 2 trades places with the last 0"
+      }
+    ],
+    "constraints": [
+      "1 ≤ nums.length ≤ 300",
+      "Every nums[i] is 0, 1 or 2.",
+      "Sort in place using swaps, with O(1) extra space.",
+      "One pass over the array, and no built-in sort."
+    ],
+    "whyItMatters": "This is Dijkstra's Dutch National Flag problem, and it's the cleanest example of a loop invariant you'll meet. Instead of thinking about the whole array, you describe four zones and promise they stay true after every step: 0s before lo, 1s from lo up to mid, unknowns from mid to hi, 2s after hi. Once the promise is written down, each case almost writes itself, and the loop ends exactly when the unknown zone is empty.\n\nThe 'oh' moment is the asymmetry. When you swap a 2 out to the right, the marble that comes back is from the unknown zone, so you have to look at it before moving on. When you swap a 0 to the left, the marble that comes back is from the white zone (or is the same 0), so you already know it's fine and can step past it. The same idea is the three-way partition at the heart of quicksort when there are lots of duplicate keys.",
+    "hint": "Keep three pointers: lo (where the next 0 goes), hi (where the next 2 goes) and mid (the marble you're looking at). Start lo and mid at 0 and hi at the last index, and loop while mid ≤ hi. A 1 can stay where it is. A 0 swaps with nums[lo]; a 2 swaps with nums[hi]. After each swap, ask: do I know what colour just landed at mid?",
+    "solution": {
+      "lang": "javascript",
+      "code": "function sortColors(nums) {\n  // [0, lo)      all 0s\n  // [lo, mid)    all 1s\n  // [mid, hi]    not looked at yet\n  // (hi, end]    all 2s\n  let lo = 0, mid = 0, hi = nums.length - 1;\n\n  while (mid <= hi) {\n    if (nums[mid] === 0) {\n      [nums[lo], nums[mid]] = [nums[mid], nums[lo]];\n      lo++;\n      mid++;          // what came from lo was already checked: a 1 (or this same 0)\n    } else if (nums[mid] === 1) {\n      mid++;          // already in the right zone\n    } else {\n      [nums[mid], nums[hi]] = [nums[hi], nums[mid]];\n      hi--;           // don't move mid: what came from hi hasn't been looked at\n    }\n  }\n  return nums;\n}\n",
+      "notes": "Each step either moves mid forward or moves hi back, so the unknown zone [mid, hi] shrinks by one every time and the loop runs exactly n times. That's the single pass.\n\nWhy does mid move after a 0 swap but not after a 2 swap? Everything between lo and mid has already been looked at and is a 1, so the marble swapped in from lo is a 1 (or, when lo equals mid, it's the 0 itself). Either way it's in the right place. The marble swapped in from hi has never been looked at, so it could be anything and must be checked on the next step.\n\nTrace example 1, [2, 0, 2, 1, 1, 0], with lo = 0, mid = 0, hi = 5. See 2: swap with index 5, giving [0, 0, 2, 1, 1, 2], hi = 4, mid stays at 0. See 0 (the one that just came back): it's already at lo, so lo = 1, mid = 1. See 0: lo = 2, mid = 2. See 2: swap with index 4, giving [0, 0, 1, 1, 2, 2], hi = 3. See 1: mid = 3. See 1: mid = 4, which is past hi, so stop. Result [0, 0, 1, 1, 2, 2] ✓. If mid had moved on after the first swap, the 0 that came back to index 0 would have been skipped. Here it happens to be in the right spot anyway, but example 3 shows a case where skipping goes wrong.\n\nTrace example 2, [2, 0, 1], with hi = 2. See 2: swap with index 2, giving [1, 0, 2], hi = 1. See 1: mid = 1. See 0: swap with lo = 0, giving [0, 1, 2], lo = 1, mid = 2. Now mid > hi, so stop ✓. The 1 swapped back to index 1 is exactly the 'already checked' white the notes above promised.\n\nTrace example 3, [1, 0, 1, 2, 0], with hi = 4. See 1: mid = 1. See 0: swap with index 0, giving [0, 1, 1, 2, 0], lo = 1, mid = 2. See 1: mid = 3. See 2: swap with index 4, giving [0, 1, 1, 0, 2], hi = 3. See 0 (the one that came back): swap with lo = 1, giving [0, 0, 1, 1, 2], lo = 2, mid = 4. Now mid > hi, so stop ✓. Had mid stepped past that returning 0, the loop would have ended with [0, 1, 1, 0, 2], a 0 stranded among the whites.\n\nO(n) time, O(1) extra space, and the only operations are swaps, so it works just as well for objects sorted by a 3-valued key."
+    }
+  },
+  {
     "id": "the-folded-tiles",
     "date": "2026-11-16",
     "title": "The Folded Tiles",
