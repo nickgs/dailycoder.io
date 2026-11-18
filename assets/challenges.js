@@ -22,6 +22,47 @@
  */
 window.CHALLENGES = [
   {
+    "id": "everyone-but-one",
+    "date": "2026-11-18",
+    "title": "Everyone But One",
+    "blurb": "Even out a row of candy jars when every move must add a sweet to all of them except one. It sounds like a scheduling headache until you look at the move from the skipped jar's point of view.",
+    "difficulty": "Easy",
+    "minutes": 8,
+    "tags": [
+      "math",
+      "greedy",
+      "arrays"
+    ],
+    "prompt": "A shop counter holds a row of candy jars. The number of candies in each jar is given as an array jars.\n\nThe shopkeeper wants every jar to hold the same number of candies, but has a strange rule: in one move, you pick exactly one jar to skip, and drop one new candy into every other jar. Candies are never taken out.\n\nReturn the smallest number of moves needed to make all the jars equal.\n\nThe tempting approach is to simulate: each round, skip the fullest jar and top up the rest, and count rounds until they match. That works, but the counts creep up together and it can take a very long time to finish.\n\nInstead, stop watching the absolute numbers. When every jar but one gets a candy, how does the skipped jar compare to its neighbours afterwards? Is there a simpler move that has exactly the same effect on the differences between jars?",
+    "examples": [
+      {
+        "in": "jars = [1, 2, 3]",
+        "out": "3  — skip the 3: [2, 3, 3]; skip a 3: [3, 3, 4]; skip the 4: [4, 4, 4]"
+      },
+      {
+        "in": "jars = [5, 5, 5]",
+        "out": "0  — already level, nothing to do"
+      },
+      {
+        "in": "jars = [1, 1, 4, 6]",
+        "out": "8  — the 4 sits 3 above the smallest jar and the 6 sits 5 above it, so 3 + 5 = 8 moves; every jar ends at 9"
+      }
+    ],
+    "constraints": [
+      "1 ≤ jars.length ≤ 10^5",
+      "0 ≤ jars[i] ≤ 10^4",
+      "Each move adds exactly one candy to every jar except one.",
+      "Aim for one pass over the array (or two) and O(1) extra space."
+    ],
+    "whyItMatters": "This is a lesson in changing the frame of reference. Adding one to everyone except one jar looks like a big move that touches the whole array, but the only thing that matters for being 'equal' is the gaps between jars. Measured that way, the move is tiny: the skipped jar drops one below where it was, relative to everyone else. So the puzzle turns into 'lower jars one candy at a time until they all match the smallest', and the answer is just how far each jar sits above the minimum, added up.\n\nThe same trick of looking at differences instead of absolute values shows up all over the place: physics problems solved in a moving frame, prefix sums, and any time a 'change everything' operation is really a 'change one thing' operation in disguise.",
+    "hint": "Two jars with 3 and 5 candies. Skip the 5: they become 4 and 5. The gap shrank by one, exactly as if you'd removed a candy from the 5. If a move is really 'take one candy out of one jar', which level should every jar end up at, and how many removals does that take?",
+    "solution": {
+      "lang": "javascript",
+      "code": "function minMoves(jars) {\n  // Adding 1 to all but one jar changes the gaps exactly like\n  // removing 1 from the skipped jar. So count how many single\n  // removals it takes to bring every jar down to the smallest.\n  let min = Infinity;\n  let sum = 0;\n  for (const c of jars) {\n    if (c < min) min = c;\n    sum += c;\n  }\n  return sum - min * jars.length;\n}\n",
+      "notes": "Why it works: being 'all equal' only depends on the differences between jars. A move adds 1 to n - 1 jars and 0 to the skipped one, so the skipped jar falls exactly one candy further behind every other jar, and every other difference stays the same. That is precisely what 'remove one candy from the skipped jar' would do. So we can pretend each move removes a candy from one jar.\n\nWith removals, the cheapest common level is the smallest jar: going any lower would cost an extra removal from every single jar. Each jar then needs jars[i] - min removals, and the total is the sum of those, which is sum(jars) - min × n. In real candies, the jars all finish at min + moves, because the smallest jar is never skipped and gains one candy per move.\n\nTrace example 1, [1, 2, 3]: sum = 6, min = 1, n = 3, so 6 - 3 = 3 ✓. The jars end at 1 + 3 = 4, matching the [4, 4, 4] in the example.\n\nTrace example 2, [5, 5, 5]: sum = 15, min = 5, n = 3, so 15 - 15 = 0 ✓.\n\nTrace example 3, [1, 1, 4, 6]: sum = 12, min = 1, n = 4, so 12 - 4 = 8 ✓. The jars end at 1 + 8 = 9: the 1s gain 8 each (never skipped), the 4 is skipped 3 times and gains 5, the 6 is skipped 5 times and gains 3, and 3 + 5 = 8 moves in total.\n\nO(n) time, O(1) extra space. With these constraints the sum stays well under 2^53, so there's no overflow in JavaScript; in a fixed-width language, accumulate the sum of (jars[i] - min) in a 64-bit integer to be safe."
+    }
+  },
+  {
     "id": "the-three-stripes",
     "date": "2026-11-17",
     "title": "The Three Stripes",
