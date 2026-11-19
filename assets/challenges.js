@@ -22,6 +22,48 @@
  */
 window.CHALLENGES = [
   {
+    "id": "the-convoy-count",
+    "date": "2026-11-19",
+    "title": "The Convoy Count",
+    "blurb": "Cars race down a one-lane road where nobody can overtake, so fast cars get stuck behind slow ones. Simulating the traffic is messy; asking one question about each car's arrival time is not.",
+    "difficulty": "Medium",
+    "minutes": 12,
+    "tags": [
+      "sorting",
+      "stacks",
+      "simulation"
+    ],
+    "prompt": "A one-lane road runs to a finish line at mile target. There are n cars on it, all heading towards the finish. Car i starts at mile position[i] and drives at a steady speed[i] miles per hour. No two cars start at the same spot.\n\nThe road is too narrow to overtake. When a faster car catches up with a slower one, it slows down and drives right behind it at the slower speed from then on. Cars driving together like this form a convoy, and a convoy can itself catch up with a slower car further ahead and grow. A single car with nobody stuck behind it also counts as a convoy.\n\nIf a car catches up with another exactly at the finish line, they count as one convoy.\n\nReturn how many convoys cross the finish line.\n\nThe tempting approach is to simulate the traffic: work out who catches whom and when, merge them, recompute, and repeat. That works on paper for three cars, but the merges cascade and the bookkeeping gets ugly fast.\n\nInstead, start from the car nearest the finish. Nobody can ever get in front of it, so you know exactly when it arrives. Now walk backwards along the road one car at a time. What single number about the traffic in front do you need to remember to decide whether the next car arrives on its own?",
+    "examples": [
+      {
+        "in": "target = 12, position = [10, 8, 0, 5, 3], speed = [2, 4, 1, 1, 3]",
+        "out": "3  — the cars at 10 and 8 both need 1 hour, so they meet exactly at the line; the car at 3 (3 hours alone) catches the car at 5 (7 hours) at mile 6 and crawls behind it; the car at 0 needs 12 hours and arrives alone"
+      },
+      {
+        "in": "target = 10, position = [3], speed = [3]",
+        "out": "1  — one car on the road is one convoy"
+      },
+      {
+        "in": "target = 20, position = [0, 4, 10, 14], speed = [5, 1, 2, 3]",
+        "out": "3  — the car at 14 arrives in 2 hours, the car at 10 in 5; the car at 4 needs 16 hours, and the speedy car at 0 (4 hours alone) catches it after 1 hour at mile 5 and is stuck behind it"
+      }
+    ],
+    "constraints": [
+      "1 ≤ n ≤ 10^5",
+      "1 ≤ target ≤ 10^6",
+      "0 ≤ position[i] < target, and all positions are different.",
+      "1 ≤ speed[i] ≤ 10^6",
+      "Aim for O(n log n) time: one sort, then one pass."
+    ],
+    "whyItMatters": "This puzzle rewards picking the right direction to look. From the back of the road, everything is tangled: a car's fate depends on every car in front of it and on all the merges between them. From the front, it's simple. The leading car's arrival time is fixed, and a car behind it can only arrive later or at the same moment, never earlier. So each car either needs more time than the convoy just ahead (it never catches up, and it starts a new convoy) or it doesn't (it gets stuck and disappears into that convoy).\n\nThe other 'oh' is that you never have to work out where or when anyone catches anyone. Merging can only slow a car down to the time of the convoy it joins, so the hours each car would need on an empty road are all you need. This is the same idea as a monotonic stack: walk in the right order and keep only the values that can still matter. Here the stack shrinks to a single number.",
+    "hint": "Sort the cars by position, nearest the finish first, and work out the hours each would need if the road were empty. A car that needs fewer hours than the car in front of it must catch up before the line. When that happens, what is its real arrival time?",
+    "solution": {
+      "lang": "javascript",
+      "code": "function carFleets(target, position, speed) {\n  // Pair each car with the hours it would need on an empty road,\n  // then look at the cars from the one nearest the finish backwards.\n  const cars = position.map((p, i) => [p, (target - p) / speed[i]]);\n  cars.sort((a, b) => b[0] - a[0]);\n\n  let fleets = 0;\n  let slowestAhead = 0; // arrival time of the fleet just in front\n  for (const [, hours] of cars) {\n    if (hours > slowestAhead) {\n      // Can't catch anyone before the line: it leads a new fleet.\n      fleets++;\n      slowestAhead = hours;\n    }\n    // Otherwise it catches up and is stuck behind that fleet.\n  }\n  return fleets;\n}\n",
+      "notes": "Why it works: a car can never finish earlier than the car directly in front of it, because it can't overtake. So walking from the front, keep the arrival time of the convoy just ahead, slowestAhead. If the next car would need more hours than that, even on an empty road, it never catches up: it crosses the line on its own and leads a new convoy, and its time becomes the new slowestAhead. If it would need the same or fewer hours, it must catch that convoy at or before the line (equal counts as catching at the line), so it joins it and slowestAhead doesn't change. We never need to know where the catch happens.\n\nTrace example 1. Hours on an empty road: car at 10 needs 2/2 = 1, car at 8 needs 4/4 = 1, car at 5 needs 7/1 = 7, car at 3 needs 9/3 = 3, car at 0 needs 12/1 = 12. Front to back: 10 (1 > 0, convoy 1, slowestAhead = 1), 8 (1 is not > 1, joins), 5 (7 > 1, convoy 2, slowestAhead = 7), 3 (3 is not > 7, joins), 0 (12 > 7, convoy 3). Answer 3 ✓.\n\nTrace example 2: the single car needs 7/3 hours, which is more than 0, so 1 convoy ✓.\n\nTrace example 3. Hours: car at 14 needs 6/3 = 2, car at 10 needs 10/2 = 5, car at 4 needs 16/1 = 16, car at 0 needs 20/5 = 4. Front to back: 14 (2, convoy 1), 10 (5 > 2, convoy 2), 4 (16 > 5, convoy 3), 0 (4 is not > 16, joins). Answer 3 ✓. The catch really does happen: the gap between the cars at 0 and 4 is 4 miles and closes at 5 - 1 = 4 mph, so they meet after 1 hour at mile 5.\n\nO(n log n) for the sort, then O(n) for the pass. Equal times compare safely as floating point here: each time is a single correctly rounded division, so two equal fractions such as 6/2 and 12/4 give exactly the same number. If you'd rather avoid division entirely, compare (target - p1) × s2 with (target - p2) × s1 instead."
+    }
+  },
+  {
     "id": "everyone-but-one",
     "date": "2026-11-18",
     "title": "Everyone But One",
