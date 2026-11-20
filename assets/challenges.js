@@ -22,6 +22,45 @@
  */
 window.CHALLENGES = [
   {
+    "id": "fours-all-the-way-down",
+    "date": "2026-11-20",
+    "title": "Fours All the Way Down",
+    "blurb": "Is a number a power of four? You could keep dividing by four until something breaks, but two one-line checks settle it, and one of them borrows a trick from the number 3.",
+    "difficulty": "Easy",
+    "minutes": 8,
+    "tags": [
+      "bit-manipulation",
+      "math"
+    ],
+    "prompt": "Given an integer n, return true if n is a power of four, meaning n = 4^k for some whole number k ≥ 0. Otherwise return false.\n\nSo 1, 4, 16, 64 and 256 are powers of four. 2, 8 and 32 are powers of two but not of four, and 0, 20 and every negative number are not powers of anything here.\n\nThe tempting approach is a loop: while n divides evenly by 4, divide it by 4, and check whether you end up at 1. That's correct, and it's a fine first answer.\n\nNow try it with no loop and no recursion. Two questions do the job. First, write a few powers of four in binary. What do they all have in common, and what quick bit trick checks it? Second, that check also lets in some numbers you don't want. What separates them from the real powers of four? Try dividing each one by 3 and looking at the remainder.",
+    "examples": [
+      {
+        "in": "n = 16",
+        "out": "true  — 16 = 4^2. In binary it's 10000: exactly one 1-bit, and 16 leaves remainder 1 when divided by 3"
+      },
+      {
+        "in": "n = 8",
+        "out": "false  — 8 is 1000 in binary, so it is a power of two, but 8 = 2 × 4 and 8 leaves remainder 2 when divided by 3"
+      },
+      {
+        "in": "n = 1",
+        "out": "true  — 1 = 4^0. Don't forget k can be 0"
+      }
+    ],
+    "constraints": [
+      "-2^31 ≤ n ≤ 2^31 − 1",
+      "Zero and negative numbers are never powers of four.",
+      "Follow-up: solve it in O(1) time with no loops and no recursion."
+    ],
+    "whyItMatters": "This one has two small turns, and each is worth keeping.\n\nThe first is n & (n − 1). Subtracting 1 from a number flips its lowest 1-bit to 0 and every 0 below it to 1. AND that with the original and the lowest 1-bit disappears. So n & (n − 1) is zero exactly when n had a single 1-bit, which is the same as saying n is a power of two. You'll meet this trick again for counting bits, for checking buffer sizes, and anywhere else powers of two show up.\n\nThe second is the remainder when you divide by 3. Since 4 = 3 + 1, every power of four is one more than a multiple of 3: 4^k leaves remainder 1. The other powers of two are 2 × 4^k, so they leave remainder 2. This kind of reasoning ('what does this look like mod m?') shows up all over number puzzles, and it often turns a loop into a single check.",
+    "hint": "Write 1, 2, 4, 8, 16, 32, 64 in binary, then write down the remainder each one leaves when divided by 3. Both columns show a pattern. Which column tells you 'power of two', and which one picks out the powers of four?",
+    "solution": {
+      "lang": "javascript",
+      "code": "function isPowerOfFour(n) {\n  // Zero and negatives can't be 4^k.\n  if (n <= 0) return false;\n\n  // n & (n - 1) clears the lowest 1-bit. If anything is left,\n  // n had more than one 1-bit, so it isn't even a power of two.\n  if ((n & (n - 1)) !== 0) return false;\n\n  // Powers of two alternate 1, 2, 1, 2, ... mod 3.\n  // The ones that leave remainder 1 are exactly the powers of four.\n  return n % 3 === 1;\n}\n",
+      "notes": "Step one throws out everything that isn't a power of two. A power of two has a single 1-bit, and n & (n − 1) clears the lowest 1-bit, so the result is 0 only when that bit was the only one. (n ≤ 0 is checked first: 0 & −1 is also 0, and we don't want 0 to pass.)\n\nStep two picks the powers of four out of the powers of two. Powers of two alternate between 4^k and 2 × 4^k. Since 4 leaves remainder 1 when divided by 3, so does every 4^k, and every 2 × 4^k leaves remainder 2. So n % 3 === 1 keeps exactly the powers of four. You can check the start of the pattern by hand: 1, 2, 4, 8, 16, 32, 64 leave remainders 1, 2, 1, 2, 1, 2, 1.\n\nTrace the examples. 16: 16 & 15 = 10000 & 01111 = 0, and 16 = 5 × 3 + 1, so true ✓. 8: 8 & 7 = 1000 & 0111 = 0, but 8 = 2 × 3 + 2, so false ✓. 1: 1 & 0 = 0, and 1 % 3 = 1, so true ✓. One more: 20 is 10100, and 20 & 19 = 10100 & 10011 = 10000 = 16, which isn't 0, so false right away.\n\nAnother way to do step two is with a bit mask. In a power of four, the single 1-bit sits at an even position (bit 0, 2, 4, ...), so (n & 0x55555555) !== 0 works too, since 0x55555555 is 0101...0101 in binary. The mod-3 version doesn't depend on the number's width, which is why it's used here.\n\nO(1) time and O(1) space."
+    }
+  },
+  {
     "id": "the-convoy-count",
     "date": "2026-11-19",
     "title": "The Convoy Count",
