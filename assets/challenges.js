@@ -22,6 +22,47 @@
  */
 window.CHALLENGES = [
   {
+    "id": "one-arrow-many-balloons",
+    "date": "2026-11-21",
+    "title": "One Arrow, Many Balloons",
+    "blurb": "Balloons are taped along a wall and every arrow flies straight up, popping everything in its path. How few arrows clear the wall? Pick the right balloon to aim at first and the rest falls into place.",
+    "difficulty": "Medium",
+    "minutes": 10,
+    "tags": [
+      "greedy",
+      "intervals",
+      "sorting"
+    ],
+    "prompt": "A row of balloons is taped flat against a long wall. Balloon i covers the horizontal stretch from x = start_i to x = end_i, both ends included. How high each one sits doesn't matter.\n\nYou stand at the foot of the wall with a bow. An arrow fired straight up from position x pops every balloon whose stretch contains x, including balloons that only touch x with an edge. Arrows keep flying, so one arrow can pop as many balloons as it passes through.\n\nGiven the list of balloons as [start, end] pairs, return the smallest number of arrows that pops all of them.\n\nThe tempting approach is to find the spot where the most balloons overlap, shoot there, cross those balloons off, and repeat. It feels sensible, but finding that spot over and over is slow, and it's hard to be sure it never wastes an arrow.\n\nInstead, think about one particular balloon: the one whose right edge comes first. Some arrow has to pop it, so that arrow lands somewhere inside its stretch. Where inside its stretch is the best place to put it, and why can you be sure?",
+    "examples": [
+      {
+        "in": "balloons = [[10, 16], [2, 8], [1, 6], [7, 12]]",
+        "out": "2  — an arrow at x = 6 pops [1, 6] and [2, 8]; an arrow at x = 12 pops [7, 12] and [10, 16]"
+      },
+      {
+        "in": "balloons = [[1, 2], [2, 3], [3, 4], [4, 5]]",
+        "out": "2  — edges count: x = 2 pops [1, 2] and [2, 3], and x = 4 pops [3, 4] and [4, 5]"
+      },
+      {
+        "in": "balloons = [[1, 10], [2, 3], [4, 5]]",
+        "out": "2  — [2, 3] and [4, 5] don't overlap, so one arrow can't do it; x = 3 pops [2, 3] and [1, 10], and x = 5 pops [4, 5]"
+      }
+    ],
+    "constraints": [
+      "1 ≤ balloons.length ≤ 10^5",
+      "-2^31 ≤ start_i ≤ end_i ≤ 2^31 − 1",
+      "A balloon may be a single point (start_i = end_i).",
+      "Aim for O(n log n) time: one sort, then one pass."
+    ],
+    "whyItMatters": "This is the classic greedy argument in its cleanest form. Look at the balloon that ends first. Some arrow must land in its stretch, at a spot x no further right than its end. Now slide that arrow right, up to that end. Can it lose a balloon on the way? Any balloon the arrow was popping starts at or before x, and it ends no earlier than the first-ending balloon, because nothing ends sooner. So it still contains that end point, and the arrow still pops it. Moving right can only gain balloons. That makes 'shoot at the earliest right edge' a choice you can always make safely, and once you've made it, you're left with the same puzzle and fewer balloons.\n\nThe 'oh' is that sorting by start, which most people reach for first, is the wrong order. In example 3, [1, 10] starts first, but it's so wide that aiming inside it tells you almost nothing. The balloon that ends first is the one that limits you.\n\nThere's a bonus twist. The answer also equals the largest number of balloons you can pick with no two of them overlapping, since each of those needs its own arrow. The same sort-by-end loop solves both problems, and it's the same idea behind fitting the most meetings into one room.",
+    "hint": "Sort the balloons by their right edge. The first balloon in that order has to be popped by some arrow. If you fire that arrow exactly at its right edge, which other balloons does it pop?",
+    "solution": {
+      "lang": "javascript",
+      "code": "function minArrows(balloons) {\n  // Look at the balloons in order of where they END, leftmost first.\n  const sorted = [...balloons].sort((a, b) => a[1] - b[1]);\n\n  let arrows = 0;\n  let lastShot = -Infinity; // x of the most recent arrow\n  for (const [start, end] of sorted) {\n    if (start > lastShot) {\n      // The last arrow passed to the left of this balloon, so it's\n      // still up. Fire as far right as it allows: its right edge.\n      arrows++;\n      lastShot = end;\n    }\n    // Otherwise start <= lastShot <= end (we sorted by end),\n    // so the last arrow already went through it.\n  }\n  return arrows;\n}\n",
+      "notes": "Why it works: walk the balloons in order of their right edge and keep lastShot, the position of the most recent arrow. If a balloon starts after lastShot, no arrow so far has hit it (every earlier arrow is at or left of lastShot), so fire a new one at its right edge, which is the best spot for the reason given in 'why this is good for your brain'. If it starts at or before lastShot, then because it ends no earlier than the balloon we aimed at, start ≤ lastShot ≤ end, and it's already popped.\n\nTrace example 1. Sorted by end: [1, 6], [2, 8], [7, 12], [10, 16]. [1, 6]: 1 > −∞, arrow 1 at x = 6. [2, 8]: 2 ≤ 6, already popped. [7, 12]: 7 > 6, arrow 2 at x = 12. [10, 16]: 10 ≤ 12, already popped. Answer 2 ✓.\n\nTrace example 2. Already sorted by end. [1, 2]: arrow 1 at x = 2. [2, 3]: 2 ≤ 2, popped. Touching counts, which is why the check is start > lastShot and not start ≥ lastShot. [3, 4]: 3 > 2, arrow 2 at x = 4. [4, 5]: 4 ≤ 4, popped. Answer 2 ✓.\n\nTrace example 3. Sorted by end: [2, 3], [4, 5], [1, 10]. [2, 3]: arrow 1 at x = 3. [4, 5]: 4 > 3, arrow 2 at x = 5. [1, 10]: 1 ≤ 5, popped. Answer 2 ✓. If you ran the same loop sorted by start instead, the first arrow would go to x = 10, and the loop would wrongly count [2, 3] and [4, 5] as popped and answer 1.\n\nO(n log n) for the sort and O(n) for the pass. The comparator a[1] − b[1] is safe in JavaScript, where these differences are exact. In a language with 32-bit ints, compare with < instead of subtracting, or the subtraction can overflow."
+    }
+  },
+  {
     "id": "fours-all-the-way-down",
     "date": "2026-11-20",
     "title": "Fours All the Way Down",
