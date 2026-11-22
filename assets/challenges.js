@@ -22,6 +22,47 @@
  */
 window.CHALLENGES = [
   {
+    "id": "the-last-matchstick",
+    "date": "2026-11-22",
+    "title": "The Last Matchstick",
+    "blurb": "Two players take turns grabbing matchsticks from a pile, and whoever takes the last one wins. Can you tell who wins from the opening position, and what your first move should be? One division answers both.",
+    "difficulty": "Easy",
+    "minutes": 8,
+    "tags": [
+      "math",
+      "game-theory",
+      "recursion"
+    ],
+    "prompt": "There are n matchsticks on the table. You and a friend take turns, and you go first. On each turn a player must take at least 1 and at most k matchsticks. Whoever takes the last matchstick wins.\n\nBoth of you play perfectly: neither player ever makes a move that throws away a win they could have forced.\n\nGiven n and k, return the number of matchsticks you should take on your first move to guarantee a win. If no first move guarantees a win, meaning your friend can beat you whatever you do, return 0.\n\nThe tempting approach is to explore the game tree: try every move, then every reply, and so on. That works for tiny piles, but n can be a billion.\n\nInstead, play a few small games by hand with k = 3. Label each pile size W if the player about to move can force a win, and L if they can't. Fill in n = 1, 2, 3, ... up to about 9. A pattern shows up quickly. Can you explain why it has to continue?",
+    "examples": [
+      {
+        "in": "n = 4, k = 3",
+        "out": "0  — whatever you take (1, 2 or 3), your friend takes the rest (3, 2 or 1) and wins"
+      },
+      {
+        "in": "n = 7, k = 3",
+        "out": "3  — that leaves 4, the losing pile from example 1, and now it's your friend's turn to face it"
+      },
+      {
+        "in": "n = 13, k = 5",
+        "out": "1  — that leaves 12. Whenever your friend takes t, you take 6 − t: 12 → 6 → 0, and the last matchstick is yours"
+      }
+    ],
+    "constraints": [
+      "1 ≤ n ≤ 10^9",
+      "1 ≤ k ≤ 10^9",
+      "k may be larger than n, in which case you can take the whole pile at once.",
+      "Aim for O(1) time and space."
+    ],
+    "whyItMatters": "This is the smallest example of a powerful idea: label every game position as winning or losing, working up from the end. A position is losing if every move from it leads to a winning position for your opponent. It's winning if at least one move leads to a losing position for them. With k = 3 the labels go W W W L W W W L W ..., and once you see that, the whole game comes down to one remainder.\n\nThe 'oh' is the pairing argument. If the pile is a multiple of k + 1 when it's your friend's turn, then whatever they take (some t between 1 and k), you take k + 1 − t, which is also between 1 and k. Each round removes exactly k + 1 matchsticks, so the pile stays a multiple of k + 1, and eventually your friend faces 0 with nothing left to take, because you took the last one. So the position to hand your opponent is a multiple of k + 1, and your opening move is whatever gets you there.\n\nThe same reasoning about winning and losing positions carries over to much richer games, and it's the same habit as dynamic programming: work out the answer for small cases, find the rule that builds each answer from earlier ones, then look for a shortcut.",
+    "hint": "Call a pile 'losing' if the player about to move from it can't force a win. With k = 3, 4 is the first losing pile. What happens if you can always hand your friend a pile of 4, 8, 12, ...? And can they ever hand one back to you?",
+    "solution": {
+      "lang": "javascript",
+      "code": "function firstMove(n, k) {\n  // Multiples of (k + 1) are losing piles for the player about to move.\n  // Take just enough to leave your friend on one. If n is already a\n  // multiple, the remainder is 0: no first move wins.\n  return n % (k + 1);\n}\n",
+      "notes": "Why it works: call a pile a multiple of k + 1 'losing' for whoever has to move. From a losing pile, any move takes t with 1 ≤ t ≤ k, which leaves a pile that is not a multiple of k + 1 (you'd need to take 0 or k + 1). From any other pile n, taking r = n % (k + 1) is legal, since 1 ≤ r ≤ k, and it leaves a multiple of k + 1. So the player who leaves a multiple can keep doing it, answering t with k + 1 − t, until they take the last matchstick. The other player never gets a multiple of their own to leave behind. A pile of 0 counts as a multiple, which is how the game ends.\n\nThe winning move is also unique: among 1..k, only one value takes n down to a multiple of k + 1, so the answer is well defined.\n\nTrace example 1: 4 % 4 = 0, so return 0. Your friend wins. ✓\nTrace example 2: 7 % 4 = 3. Take 3, leaving 4. Your friend takes t, you take 4 − t, and you take the last one. ✓\nTrace example 3: 13 % 6 = 1. Take 1, leaving 12. If your friend takes 2, you take 4 (leaving 6). If they then take 5, you take 1, and the pile is empty: you took the last one. ✓\n\nWhen k ≥ n, n % (k + 1) = n, so the function says to take the whole pile at once, which is correct.\n\nO(1) time and space. A recursive or table-filling version (win[i] = some move t leads to a pile where win[i − t] is false) gives the same answers and is a good way to check the pattern for small n, but it takes O(n · k) time."
+    }
+  },
+  {
     "id": "one-arrow-many-balloons",
     "date": "2026-11-21",
     "title": "One Arrow, Many Balloons",
