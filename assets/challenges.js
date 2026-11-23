@@ -22,6 +22,46 @@
  */
 window.CHALLENGES = [
   {
+    "id": "the-scholars-number",
+    "date": "2026-11-23",
+    "title": "The Scholar's Number",
+    "blurb": "A researcher's h-index is the biggest h where h of their papers have at least h citations each. Sorting finds it, but there's a faster way, and it starts with noticing that a paper with a million citations counts the same as one with n.",
+    "difficulty": "Medium",
+    "minutes": 12,
+    "tags": [
+      "counting",
+      "arrays",
+      "sorting"
+    ],
+    "prompt": "A researcher has published n papers. You're given an array citations where citations[i] is how many times paper i has been cited.\n\nTheir h-index is the largest whole number h such that at least h of their papers have been cited at least h times each. Return it.\n\nFor example, with citations [3, 0, 6, 1, 5]: three papers (3, 6 and 5) have at least 3 citations, so h = 3 works. Only two papers have at least 4, so h = 4 doesn't. The answer is 3.\n\nThe tempting approach is to sort the citations from highest to lowest and walk down the list until the paper in position i (counting from 1) has fewer than i citations. That works and it's a good first answer, at O(n log n).\n\nNow do it in O(n) without sorting. Two questions get you there. First, what's the biggest the h-index could possibly be, whatever the citation counts are? Second, once you know that ceiling, does it matter whether a paper has n + 1 citations or a million?",
+    "examples": [
+      {
+        "in": "citations = [3, 0, 6, 1, 5]",
+        "out": "3  — papers with 3, 6 and 5 citations give three papers with at least 3 each; only two papers (6 and 5) have at least 4"
+      },
+      {
+        "in": "citations = [10, 8, 5, 4, 3]",
+        "out": "4  — 10, 8, 5 and 4 are four papers with at least 4 citations each; only three papers have at least 5"
+      },
+      {
+        "in": "citations = [100, 100]",
+        "out": "2  — both papers are cited plenty, but there are only two of them, so h can't go past 2"
+      }
+    ],
+    "constraints": [
+      "1 ≤ n = citations.length ≤ 10^5",
+      "0 ≤ citations[i] ≤ 10^9",
+      "Aim for O(n) time and O(n) extra space."
+    ],
+    "whyItMatters": "The ceiling is the whole trick. You can't have h papers if you only wrote n, so h is at most n. That means any citation count above n behaves exactly like n: a paper with 10^9 citations helps exactly as much as one with n. Cap every count at n and the values now fit in a small range 0..n, so you can tally them in an array of n + 1 buckets instead of sorting.\n\nThen walk the buckets from the top down, keeping a running total of how many papers have at least h citations. The first h where that total reaches h is the answer, because you're checking from the largest candidate downward.\n\nThis is the same move behind counting sort and bucket sort: when the values that matter live in a small range, you don't need comparisons at all. Looking for a cap like this, a point past which bigger stops making a difference, is a habit that turns plenty of 'sort it first' problems into a single pass.",
+    "hint": "The h-index can never be more than n, the number of papers. So treat every paper with more than n citations as if it had exactly n. Now make a tally: how many papers have 0 citations, 1 citation, ..., n citations? Add up the tally from the top end.",
+    "solution": {
+      "lang": "javascript",
+      "code": "function hIndex(citations) {\n  const n = citations.length;\n  // count[c] = how many papers have exactly c citations,\n  // except that anything above n is lumped into count[n].\n  const count = new Array(n + 1).fill(0);\n  for (const c of citations) count[Math.min(c, n)]++;\n\n  // Walk h downward. 'atLeast' is the number of papers with >= h citations.\n  let atLeast = 0;\n  for (let h = n; h >= 0; h--) {\n    atLeast += count[h];\n    if (atLeast >= h) return h; // first hit from the top is the largest h\n  }\n  return 0; // not reached: at h = 0, atLeast = n >= 0\n}\n",
+      "notes": "Why it works: after capping, count[k] for k < n is the number of papers with exactly k citations, and count[n] is the number with n or more. Walking h from n down to 0 and adding count[h] each step, atLeast is exactly the number of papers with at least h citations. A paper capped into bucket n really does have at least h citations for every h ≤ n, so the capping never miscounts. The first h from the top with atLeast ≥ h is the largest h that works. At h = 0 the condition always holds, so the loop always returns.\n\nTrace example 1: n = 5, citations [3, 0, 6, 1, 5]. 6 is capped to 5. Buckets: count[0] = 1, count[1] = 1, count[3] = 1, count[5] = 2. h = 5: atLeast = 2, not ≥ 5. h = 4: atLeast = 2, not ≥ 4. h = 3: atLeast = 3 ≥ 3, return 3 ✓.\n\nTrace example 2: n = 5, citations [10, 8, 5, 4, 3]. 10 and 8 are capped to 5. Buckets: count[3] = 1, count[4] = 1, count[5] = 3. h = 5: atLeast = 3, not ≥ 5. h = 4: atLeast = 4 ≥ 4, return 4 ✓.\n\nTrace example 3: n = 2, citations [100, 100]. Both capped to 2, so count[2] = 2. h = 2: atLeast = 2 ≥ 2, return 2 ✓.\n\nO(n) time and O(n) space. The sorting version (sort descending, then h is the number of positions i, counting from 1, where sorted[i − 1] ≥ i) gives the same answers in O(n log n) time and is a handy way to check this one."
+    }
+  },
+  {
     "id": "the-last-matchstick",
     "date": "2026-11-22",
     "title": "The Last Matchstick",
