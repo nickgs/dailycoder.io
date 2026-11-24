@@ -22,6 +22,47 @@
  */
 window.CHALLENGES = [
   {
+    "id": "the-coastline-count",
+    "date": "2026-11-24",
+    "title": "The Coastline Count",
+    "blurb": "Measure every stretch of shore on a grid map without tracing a single coast. Count the land, count where land touches land, and one line of arithmetic does the rest.",
+    "difficulty": "Easy",
+    "minutes": 8,
+    "tags": [
+      "matrices",
+      "math",
+      "counting"
+    ],
+    "prompt": "You're given a map as a grid of 0s and 1s. A 1 is a square of land and a 0 is a square of water. Every square is 1 unit on each side, and everything beyond the edge of the map is water.\n\nThe coastline is the total length of all the square edges where land meets water, including the edge of the map. Return it.\n\nThe map can hold any number of islands, and an island can have a lake inside it. A lake's shore counts as coastline too, because it's still land meeting water.\n\nThe tempting approach is to find each island and walk around its coast, turning corners as you go. That gets messy fast, especially once lakes show up.\n\nThere's a much calmer way. Imagine every land square starting out as a separate little island. How much coast does it have on its own? Now push two of them together so they share a side. How much coastline just disappeared?",
+    "examples": [
+      {
+        "in": "grid = [[0,1,0,0], [1,1,1,0], [0,1,0,0], [1,1,0,0]]",
+        "out": "16  — 7 land squares give 7 × 4 = 28 edges; 6 pairs of land squares share a side (3 side-by-side, 3 stacked), and each pair hides 2 edges: 28 − 12 = 16"
+      },
+      {
+        "in": "grid = [[1,1], [1,1]]",
+        "out": "8  — 4 squares give 16 edges, 4 shared sides hide 8 of them, leaving the 2 × 2 block's outline of 8"
+      },
+      {
+        "in": "grid = [[1,1,1], [1,0,1], [1,1,1]]",
+        "out": "16  — a ring with a lake: 12 units of outer coast plus 4 around the lake. The formula agrees without knowing the lake exists: 8 × 4 − 2 × 8 = 16"
+      }
+    ],
+    "constraints": [
+      "1 ≤ rows, cols ≤ 100",
+      "Every cell is 0 or 1.",
+      "Squares touch only through their sides; squares that meet at a corner don't share an edge.",
+      "Aim for one pass over the grid with O(1) extra space."
+    ],
+    "whyItMatters": "This is a counting trick that shows up everywhere: instead of measuring a complicated shape directly, start from something simple and subtract what overlaps. Each land square on its own has 4 edges of coast. Whenever two land squares share a side, that side stops being coast for both of them, so the total drops by exactly 2. That gives coastline = 4 × (land squares) − 2 × (shared sides), with no tracing, no recursion, and no special case for lakes.\n\nThe second small idea is how to count each shared side exactly once. If every land square checks all four neighbours, each shared side gets seen twice. If every square only looks right and down, each side is seen once, by the square on its left or above it.\n\nReplacing 'follow the boundary' with 'add up local pieces' is a habit worth having. The same reasoning is behind inclusion–exclusion counting, Euler's formula for polygons, and plenty of grid problems that look like they need a search but don't.",
+    "hint": "A lone land square has 4 units of coast. When two land squares share a side, the total coast goes down by 2, because each loses one edge. So you only need two numbers: how many land squares there are, and how many pairs of land squares share a side. To avoid counting a pair twice, have each square check only its right neighbour and the one below.",
+    "solution": {
+      "lang": "javascript",
+      "code": "function coastline(grid) {\n  const rows = grid.length, cols = grid[0].length;\n  let land = 0, shared = 0;\n\n  for (let r = 0; r < rows; r++) {\n    for (let c = 0; c < cols; c++) {\n      if (grid[r][c] !== 1) continue;\n      land++;\n      // Look only right and down, so each shared side is counted once.\n      if (c + 1 < cols && grid[r][c + 1] === 1) shared++;\n      if (r + 1 < rows && grid[r + 1][c] === 1) shared++;\n    }\n  }\n\n  // Every land square brings 4 edges; every shared side removes 2.\n  return 4 * land - 2 * shared;\n}\n",
+      "notes": "Why it works: every edge of every land square is either coast (water or the map edge on the other side) or a side shared with another land square. Adding 4 per land square counts each coast edge once and each shared side twice, once from each square. Subtracting 2 per shared side removes exactly those. Lakes need no special handling, because a lake's shore is just more land-meets-water edges.\n\nTrace example 1: land squares are (0,1), (1,0), (1,1), (1,2), (2,1), (3,0), (3,1), so land = 7. Right-neighbour pairs: (1,0)–(1,1), (1,1)–(1,2), (3,0)–(3,1) = 3. Down-neighbour pairs: (0,1)–(1,1), (1,1)–(2,1), (2,1)–(3,1) = 3. shared = 6, so 28 − 12 = 16 ✓.\n\nTrace example 2: land = 4, shared = 2 across + 2 down = 4, so 16 − 8 = 8 ✓.\n\nTrace example 3: land = 8 (every square except the centre). Across: 2 in the top row, 2 in the bottom row, 0 in the middle = 4. Down: 2 in the left column, 2 in the right column, 0 in the middle = 4. shared = 8, so 32 − 16 = 16 ✓, which is the outer 12 plus the 4 around the lake.\n\nO(rows × cols) time, O(1) extra space. A good way to check it is the direct version: for each land square, look in all four directions and add 1 for every neighbour that's water or off the map. It gives the same answer and does about twice the work."
+    }
+  },
+  {
     "id": "the-scholars-number",
     "date": "2026-11-23",
     "title": "The Scholar's Number",
