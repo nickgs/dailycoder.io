@@ -22,6 +22,47 @@
  */
 window.CHALLENGES = [
   {
+    "id": "apples-before-bananas",
+    "date": "2026-11-25",
+    "title": "Apples Before Bananas",
+    "blurb": "A row of apples and bananas needs every apple in front of every banana, and the only tool you have is taking fruit away. Find the fewest removals by picturing the one place a divider would go.",
+    "difficulty": "Medium",
+    "minutes": 12,
+    "tags": [
+      "strings",
+      "prefix-sums",
+      "dynamic-programming"
+    ],
+    "prompt": "A grocer has set out a row of fruit, written as a string s made of the letters 'a' (apple) and 'b' (banana). She wants the row to be tidy: every apple must come before every banana. In other words, no 'b' may appear anywhere to the left of an 'a'.\n\nShe can't rearrange anything. The only thing she can do is take a piece of fruit out of the row, and the rest close up the gap. Return the smallest number of pieces she has to remove to make the row tidy.\n\nAll apples is tidy, all bananas is tidy, and an empty row is tidy too.\n\nThe tempting approach is to fix problems as you meet them: every time a 'b' sits in front of an 'a', remove one of them. But which one? Remove the wrong one and you pay for it later, and trying every choice blows up fast.\n\nTry a different picture instead. When the row is finally tidy, there's a spot where the apples stop and the bananas start. Suppose you knew where that spot was in the original string. How many removals would you need, and is there any choice left to make?",
+    "examples": [
+      {
+        "in": "s = \"aababbab\"",
+        "out": "2  — remove the 'b' at index 2 and the 'a' at index 6 to get \"aaabbb\". No single removal works, because the 'b' at index 2 has two apples after it and the 'a' at index 6 has three bananas before it"
+      },
+      {
+        "in": "s = \"bbaaa\"",
+        "out": "2  — remove both bananas to leave \"aaa\". Removing the apples instead would cost 3"
+      },
+      {
+        "in": "s = \"abbbaaab\"",
+        "out": "3  — either remove the three bananas in the middle (\"aaaab\") or the three apples after them (\"abbbb\"). Every other choice costs more"
+      }
+    ],
+    "constraints": [
+      "1 ≤ s.length ≤ 10^5",
+      "s contains only the letters 'a' and 'b'.",
+      "Removing every piece of fruit is allowed; the empty row counts as tidy.",
+      "Aim for O(n) time and O(1) extra space."
+    ],
+    "whyItMatters": "The turn here is swapping a series of choices for one choice. Fixing conflicts one at a time means deciding, again and again, whether the apple or the banana goes, and those decisions interact. But every tidy result has a divider: apples to its left, bananas to its right. Once you fix where the divider goes, nothing is left to decide. Every 'b' to its left has to go and every 'a' to its right has to go, so the cost is (b's on the left) + (a's on the right).\n\nThere are only n + 1 places to put the divider, and sliding it one letter to the right changes the cost by exactly 1: past an 'a', one fewer apple is on the wrong side; past a 'b', one more banana is. So you can price every divider in a single sweep, keeping two counters and the best total so far.\n\nThis is a habit worth keeping: when a problem asks for a sequence of decisions, ask what the finished answer has to look like, and whether choosing one thing about it (here, a split point) settles everything else. Prefix and suffix counts then do the rest. The same move cracks plenty of 'make it sorted', 'split the array' and 'best partition' problems.",
+    "hint": "Imagine drawing a line somewhere in the row (before the first letter, between any two, or after the last). If the line marks where apples end and bananas begin, which pieces of fruit must be removed? Count them, then figure out how that count changes as you slide the line one letter to the right.",
+    "solution": {
+      "lang": "javascript",
+      "code": "function tidyDeletions(s) {\n  // Picture a divider somewhere in the string: everything left of it\n  // should be 'a', everything right of it should be 'b'.\n  // Cost of a divider = (b's on its left) + (a's on its right).\n  let aRight = 0;\n  for (const ch of s) if (ch === 'a') aRight++;\n\n  let bLeft = 0;\n  let best = aRight; // divider before the first letter: delete every 'a'\n\n  for (const ch of s) {\n    // Slide the divider one letter to the right, past ch.\n    if (ch === 'a') aRight--;\n    else bLeft++;\n    best = Math.min(best, bLeft + aRight);\n  }\n  return best;\n}\n",
+      "notes": "Why it works: any tidy row you can end up with is all a's followed by all b's, so in the original string there's a divider position where every kept 'a' is on the left and every kept 'b' is on the right. For that divider, you must remove every 'b' on its left and every 'a' on its right, and removing exactly those is enough. So the answer is the smallest value of (b's left of the divider) + (a's right of the divider) over all n + 1 divider positions, and the loop checks every one of them.\n\nTrace example 1, s = \"aababbab\", which has 4 a's. The divider starts before index 0 with cost 0 + 4 = 4. Sliding it past each letter gives: a → 0 + 3 = 3, a → 0 + 2 = 2, b → 1 + 2 = 3, a → 1 + 1 = 2, b → 2 + 1 = 3, b → 3 + 1 = 4, a → 3 + 0 = 3, b → 4 + 0 = 4. The smallest is 2 ✓.\n\nTrace example 2, s = \"bbaaa\", 3 a's. Costs: 3, then b → 1 + 3 = 4, b → 2 + 3 = 5, a → 2 + 2 = 4, a → 2 + 1 = 3, a → 2 + 0 = 2. The smallest is 2 ✓, with the divider at the very end (keep only apples).\n\nTrace example 3, s = \"abbbaaab\", 4 a's. Costs: 4, then a → 0 + 3 = 3, b → 1 + 3 = 4, b → 2 + 3 = 5, b → 3 + 3 = 6, a → 3 + 2 = 5, a → 3 + 1 = 4, a → 3 + 0 = 3, b → 4 + 0 = 4. The smallest is 3 ✓, reached in two places, matching the two answers in the example.\n\nO(n) time, O(1) extra space. There's also a one-pass version that skips the first count: keep bSeen and del (the best answer for the prefix so far). On a 'b', bSeen++ and del stays the same, since a 'b' at the end never breaks tidiness. On an 'a', del = Math.min(del + 1, bSeen): either remove this apple, or keep it and remove every banana before it. It's the same idea in dynamic-programming clothes, and a good way to check your answers."
+    }
+  },
+  {
     "id": "the-coastline-count",
     "date": "2026-11-24",
     "title": "The Coastline Count",
