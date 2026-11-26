@@ -22,6 +22,47 @@
  */
 window.CHALLENGES = [
   {
+    "id": "the-free-hop",
+    "date": "2026-11-26",
+    "title": "The Free Hop",
+    "blurb": "Gather a scatter of tokens onto one spot on a number line, where hopping two steps is free and one step costs a coin. The distances look like they matter. They don't, and seeing why gives you a one-line answer.",
+    "difficulty": "Easy",
+    "minutes": 7,
+    "tags": [
+      "math",
+      "parity",
+      "greedy"
+    ],
+    "prompt": "Some tokens sit on a number line. You're given their positions as an array of integers; several tokens can share a position.\n\nYou want every token on the same spot, and you get to choose which spot. To move a token you have two kinds of step:\n\n• Hop it 2 places left or right. This is free.\n• Step it 1 place left or right. This costs 1 coin.\n\nYou can move any token as many times as you like, in any order. Return the fewest coins you need to spend to get every token onto one position.\n\nThe tempting approach is to try each possible meeting spot and work out, for every token, how many paid steps it needs to get there. That's a lot of work, and the positions can be as large as a billion, so 'every spot' is far too many.\n\nBefore doing any of that, play with a single token. Using only free hops, which positions can it reach? Which ones can it never reach without paying? And once it has paid for one step, how far can it then go for free?",
+    "examples": [
+      {
+        "in": "position = [1, 2, 3]",
+        "out": "1  — meet at 1: the token at 3 hops to 1 for free, and the token at 2 pays one coin to step to 1. Meeting at 2 would cost 2, one coin each for the tokens at 1 and 3"
+      },
+      {
+        "in": "position = [2, 2, 2, 3, 3]",
+        "out": "2  — meet at 2 and pay one coin for each of the two tokens at 3. Meeting at 3 instead would cost 3, one for each token at 2"
+      },
+      {
+        "in": "position = [5, 1000000000, 13, 21]",
+        "out": "1  — meet at 5: the tokens at 13 and 21 hop there for free. The token at 1,000,000,000 hops for free all the way down to 6 and pays one coin to step to 5. Distance never cost anything"
+      }
+    ],
+    "constraints": [
+      "1 ≤ position.length ≤ 100",
+      "1 ≤ position[i] ≤ 10^9",
+      "Several tokens may start on the same position.",
+      "Aim for one pass over the array and O(1) extra space."
+    ],
+    "whyItMatters": "The turn here is noticing what the free move can't change. A hop of 2 never changes whether a position is odd or even, so with free hops alone a token can reach every position of its own parity and nothing else. That means the only thing that costs money is crossing between odd and even, and one paid step does that, after which the token can hop anywhere on its new side for free.\n\nSo the problem collapses to two piles: tokens on odd positions and tokens on even positions. Pick a meeting spot and every token on the other side pays exactly 1 coin, and every token on the same side pays 0. The best you can do is make the smaller pile cross, so the answer is min(odd count, even count). The actual distances, even a billion apart, are irrelevant.\n\nLooking for the quantity a free operation preserves (here, parity) is a habit that cracks a surprising number of puzzles: tiling a chessboard with dominoes, the 15-puzzle's unsolvable positions, and plenty of 'can you ever reach this state?' questions.",
+    "hint": "A free hop of 2 keeps a token on the same parity: odd stays odd, even stays even. So with free hops alone, any token can reach any position of its own parity. Paying 1 coin is only ever needed to switch parity, and once is enough. Count how many tokens are on odd positions and how many on even ones.",
+    "solution": {
+      "lang": "javascript",
+      "code": "function minCostToGather(position) {\n  let odd = 0, even = 0;\n\n  for (const p of position) {\n    if (p % 2 === 0) even++;\n    else odd++;\n  }\n\n  // Meet on the side with more tokens; everyone on the\n  // other side pays exactly one coin to switch parity.\n  return Math.min(odd, even);\n}\n",
+      "notes": "Why it works: pick any meeting spot t. A token whose position has the same parity as t can reach t by free hops alone, so it costs 0. A token with the other parity must pay at least 1, because hops of 2 never change parity and something has to. One paid step is also enough: step 1 towards t, and the rest of the way is free hops. So the cost of meeting at t is exactly the number of tokens on the other parity from t. An even t costs 'odd count', an odd t costs 'even count', and the answer is the smaller of the two.\n\nTrace example 1: positions 1, 2, 3 give odd = 2 (1 and 3), even = 1 (2). min(2, 1) = 1 ✓.\n\nTrace example 2: positions 2, 2, 2, 3, 3 give even = 3, odd = 2. min(2, 3) = 2 ✓.\n\nTrace example 3: 5, 13 and 21 are odd and 1,000,000,000 is even, so odd = 3, even = 1. min(3, 1) = 1 ✓.\n\nO(n) time, O(1) extra space. Notice that the positions themselves only matter through p % 2; you could replace every position with 0 or 1 and get the same answer."
+    }
+  },
+  {
     "id": "apples-before-bananas",
     "date": "2026-11-25",
     "title": "Apples Before Bananas",
