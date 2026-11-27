@@ -22,6 +22,48 @@
  */
 window.CHALLENGES = [
   {
+    "id": "the-missing-pages",
+    "date": "2026-11-27",
+    "title": "The Missing Pages",
+    "blurb": "A water-damaged book has lost some of its pages, and you want the k-th page that's gone. You could count gaps one by one, but every surviving page quietly tells you how many went missing before it.",
+    "difficulty": "Medium",
+    "minutes": 10,
+    "tags": [
+      "binary-search",
+      "arrays",
+      "math"
+    ],
+    "prompt": "An old book was numbered 1, 2, 3, … with no gaps. After a flood, only some pages survived. You're given the surviving page numbers as a sorted array arr, strictly increasing, and a number k.\n\nReturn the k-th page number that is missing, counting from page 1. The book has no last page as far as you're concerned: if you run past the end of arr, the missing pages just keep going (every number after the last survivor is missing).\n\nThe straightforward approach is to walk upward from 1, ticking off pages that are in the array and counting the ones that aren't, until you reach k. That works, but it can take as many steps as the answer itself.\n\nTry to do better. Look at a single surviving page, say the one at index i. Without looking at anything else in the array, can you say exactly how many pages are missing below it? And what does that number do as i increases?",
+    "examples": [
+      {
+        "in": "arr = [2, 3, 4, 7, 11], k = 5",
+        "out": "9  — the missing pages are 1, 5, 6, 8, 9, 10, 12, …, and the 5th of those is 9"
+      },
+      {
+        "in": "arr = [1, 2, 3, 4], k = 2",
+        "out": "6  — nothing is missing until the array runs out, so the missing pages are 5, 6, 7, … and the 2nd is 6"
+      },
+      {
+        "in": "arr = [3, 5, 6, 9, 10, 14], k = 4",
+        "out": "7  — the missing pages are 1, 2, 4, 7, 8, 11, 12, 13, 15, …, and the 4th is 7"
+      }
+    ],
+    "constraints": [
+      "1 ≤ arr.length ≤ 1000",
+      "1 ≤ arr[i] ≤ 1000, and arr is strictly increasing.",
+      "1 ≤ k ≤ 1000",
+      "The answer may be larger than every value in arr.",
+      "Aim for O(log n) time and O(1) extra space."
+    ],
+    "whyItMatters": "The turn here is that every surviving page carries a little tally. The page at index i has the value arr[i], so the numbers 1 through arr[i] are arr[i] pages, and exactly i + 1 of them survived (the ones at indexes 0 through i). That means arr[i] - (i + 1) pages are missing below it, and you can read that off without looking at anything else.\n\nThat tally never goes down as i increases, because missing pages only pile up. A sorted, never-decreasing quantity is exactly what binary search needs, so instead of searching for a value you search for the first index whose tally reaches k. If that index is lo, then lo surviving pages sit below the answer, along with k missing ones, so the answer is lo + k. No loop over page numbers, no special case for running off the end of the array.\n\nThe habit worth keeping: binary search isn't only for finding a value in a sorted list. Whenever you can compute some quantity at any position that only ever goes one way, you can binary search on that quantity, even if it isn't stored anywhere.",
+    "hint": "For the page at index i, the numbers 1 through arr[i] would be arr[i] pages if none were lost, and i + 1 of them are in the array. So arr[i] - (i + 1) pages are missing below it. That count never decreases, so binary search for the first index where it reaches k.",
+    "solution": {
+      "lang": "javascript",
+      "code": "function kthMissing(arr, k) {\n  // Before index i, the numbers 1..arr[i] contain arr[i] values,\n  // and i + 1 of them are in the array, so arr[i] - (i + 1) are missing.\n  // That count never decreases, so binary search for the first index\n  // where at least k numbers are missing.\n  let lo = 0, hi = arr.length;\n\n  while (lo < hi) {\n    const mid = (lo + hi) >> 1;\n    if (arr[mid] - (mid + 1) < k) lo = mid + 1;\n    else hi = mid;\n  }\n\n  // lo array values sit below the answer, plus k missing ones.\n  return lo + k;\n}\n",
+      "notes": "Why it works: let missing(i) = arr[i] - (i + 1). Because arr is strictly increasing, each step from i to i + 1 raises arr by at least 1 and the survivor count by exactly 1, so missing(i) never decreases. The search finds lo, the first index with missing(lo) ≥ k, or arr.length if there's none. Every survivor before index lo has fewer than k missing pages below it, so it is smaller than the k-th missing page, and the survivor at lo (if there is one) already has k missing pages below it, so it's larger. That leaves exactly lo survivors and k missing pages in 1 … answer, so the answer is lo + k.\n\nTrace example 1, arr = [2, 3, 4, 7, 11], k = 5. The tallies are 2-1 = 1, 3-2 = 1, 4-3 = 1, 7-4 = 3, 11-5 = 6. The first tally that's at least 5 is at index 4, so lo = 4 and the answer is 4 + 5 = 9 ✓.\n\nTrace example 2, arr = [1, 2, 3, 4], k = 2. Every tally is 0, so none reaches 2 and lo = arr.length = 4. The answer is 4 + 2 = 6 ✓. Running off the end needed no special case.\n\nTrace example 3, arr = [3, 5, 6, 9, 10, 14], k = 4. The tallies are 2, 3, 3, 5, 5, 8. The first that's at least 4 is at index 3, so the answer is 3 + 4 = 7 ✓.\n\nIf k is smaller than arr[0], the very first tally (arr[0] - 1) is already at least k, so lo = 0 and the answer is just k, which is right: pages 1 through k are all missing.\n\nO(log n) time, O(1) extra space. The linear version (walk the array and subtract each tally from k) is a fine stepping stone, but the binary search shows the tally is the real idea."
+    }
+  },
+  {
     "id": "the-free-hop",
     "date": "2026-11-26",
     "title": "The Free Hop",
