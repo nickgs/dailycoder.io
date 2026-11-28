@@ -22,6 +22,46 @@
  */
 window.CHALLENGES = [
   {
+    "id": "the-cipher-twins",
+    "date": "2026-11-28",
+    "title": "The Cipher Twins",
+    "blurb": "Could one word be the other in disguise, under a simple letter-for-letter cipher? Checking the cipher one way is easy and wrong. Giving every letter a fingerprint makes the question answer itself.",
+    "difficulty": "Easy",
+    "minutes": 8,
+    "tags": [
+      "hashing",
+      "strings"
+    ],
+    "prompt": "A substitution cipher replaces every letter of a message with some other letter, following a fixed key. Two rules make it a real cipher:\n\n• Consistency: every copy of the same letter is replaced by the same letter.\n• No collisions: two different letters never get replaced by the same letter (otherwise you couldn't decode it).\n\nA letter is allowed to map to itself.\n\nYou're given two strings s and t of the same length. Return true if some substitution cipher turns s into t, and false otherwise.\n\nThe obvious approach is to walk both strings side by side, building the key as you go: the first time you see a letter of s, record what it became in t, and on every later sighting check that it becomes the same thing again. That catches broken consistency. But run it on example 3 before you trust it.\n\nOnce you see what it misses, look for a way to describe the shape of a word that doesn't depend on which letters it uses at all. Two words in the same cipher family should have the same shape.",
+    "examples": [
+      {
+        "in": "s = \"kitten\", t = \"mutter\"",
+        "out": "true  — the key k→m, i→u, t→t, e→e, n→r works. Letters may map to themselves"
+      },
+      {
+        "in": "s = \"hello\", t = \"world\"",
+        "out": "false  — the first l lines up with r and the second l lines up with l. One letter can't become two different letters"
+      },
+      {
+        "in": "s = \"moon\", t = \"noon\"",
+        "out": "false  — reading left to right, m→n, o→o, n→n never contradicts itself, but m and n would both become n, so the message couldn't be decoded"
+      }
+    ],
+    "constraints": [
+      "1 ≤ s.length ≤ 5 × 10^4",
+      "t.length == s.length",
+      "s and t contain only lowercase English letters.",
+      "Aim for one pass over the strings and O(1) extra space (the alphabet is fixed)."
+    ],
+    "whyItMatters": "The trap is that a cipher is a two-way promise. Checking only that each letter of s always turns into the same letter of t proves the key is consistent, but says nothing about two letters of s crashing into the same letter of t. Example 3 sails straight through the one-way check. The usual repair is a second map going from t back to s, and that works.\n\nThe cleaner turn is to stop thinking about letters entirely. Replace every letter with the position where that letter first appeared: \"kitten\" becomes 0, 1, 2, 2, 4, 5 and \"mutter\" becomes 0, 1, 2, 2, 4, 5 as well. That fingerprint records only the word's pattern of repeats, which is exactly what a cipher can't change, because a cipher renames letters without merging or splitting them. So two strings are cipher twins precisely when their fingerprints match, and both directions of the promise are checked by a single comparison.\n\nThe habit worth keeping: when two things are 'the same up to renaming', look for a canonical form that throws the names away, then just compare canonical forms. The same idea groups anagrams, matches word patterns, and spots identical shapes in graphs.",
+    "hint": "Write each word as a list of numbers: at each position, put the index where that letter first appeared in its own word. Compare \"moon\" and \"noon\" that way and see where they part.",
+    "solution": {
+      "lang": "javascript",
+      "code": "function isCipherPair(s, t) {\n  if (s.length !== t.length) return false;\n\n  // Where did each letter first appear? Two strings are cipher twins\n  // exactly when those first-seen positions line up at every index.\n  const firstS = new Map();\n  const firstT = new Map();\n\n  for (let i = 0; i < s.length; i++) {\n    const a = s[i], b = t[i];\n    if (!firstS.has(a)) firstS.set(a, i);\n    if (!firstT.has(b)) firstT.set(b, i);\n    if (firstS.get(a) !== firstT.get(b)) return false;\n  }\n  return true;\n}\n",
+      "notes": "Why it works: the fingerprint of a word maps each position i to the first index where the letter at i appears. If a cipher turns s into t, it renames letters one-for-one, so equal letters stay equal and different letters stay different, and the pattern of repeats (the fingerprint) is unchanged. Conversely, if the fingerprints match, then positions share a letter in s exactly when they share a letter in t, so 'the letter of s at i becomes the letter of t at i' is a consistent key with no collisions. The loop compares the fingerprints one position at a time and stops at the first mismatch.\n\nTrace example 1, kitten / mutter: the first-seen indexes are k 0 / m 0, i 1 / u 1, t 2 / t 2, t 2 / t 2, e 4 / e 4, n 5 / r 5. Every pair matches, so true ✓.\n\nTrace example 2, hello / world: h 0 / w 0, e 1 / o 1, l 2 / r 2, then at index 3 the l in hello was first seen at 2 but the l in world is new, first seen at 3. 2 ≠ 3, so false ✓.\n\nTrace example 3, moon / noon: m 0 / n 0, o 1 / o 1, o 1 / o 1, then at index 3 the n in moon is new (3) while the n in noon was first seen at 0. 3 ≠ 0, so false ✓. That last comparison is the collision the one-way check missed: m and n of moon both landed on n.\n\nO(n) time. Each map holds at most 26 letters, so O(1) extra space. The two-map version (s→t and t→s, check both) is equally correct; the fingerprint view just explains why you need both directions."
+    }
+  },
+  {
     "id": "the-missing-pages",
     "date": "2026-11-27",
     "title": "The Missing Pages",
